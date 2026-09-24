@@ -1,0 +1,104 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/fraunces';
+@import '@fontsource-variable/inter';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Palette drawn from the cup: milk foam, oat, crema, espresso. */
+:root {
+  --foam: #f7f1e8;
+  --oat: #fffbf5;
+  --husk: #e6dccb;
+  --espresso: #2b1a10;
+  --roast: #7a6553;
+  --crema: #c47f3e;
+  --crema-deep: #9a5b24;
+  --citrus: #c8961c;
+  --char: #8c3b2a;
+}
+
+/* Toggled by src/lib/theme.ts (system, light or dark). */
+:root.dark {
+  --foam: #17100b;
+  --oat: #231812;
+  --husk: #3a2a1f;
+  --espresso: #f3e9dc;
+  --roast: #b19d88;
+  --crema: #d99a5b;
+  --crema-deep: #eab67f;
+  --citrus: #e0b84e;
+  --char: #d27a64;
+}
+
+@theme inline {
+  --color-foam: var(--foam);
+  --color-oat: var(--oat);
+  --color-husk: var(--husk);
+  --color-espresso: var(--espresso);
+  --color-roast: var(--roast);
+  --color-crema: var(--crema);
+  --color-crema-deep: var(--crema-deep);
+  --color-citrus: var(--citrus);
+  --color-char: var(--char);
+  --font-display: 'Fraunces Variable', ui-serif, Georgia, serif;
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+}
+
+html {
+  background: var(--foam);
+  color: var(--espresso);
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  @apply font-sans antialiased;
+  min-height: 100dvh;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+@layer base {
+  /* No orphaned last words in headings and short copy. */
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* Keyboard focus; pointer taps stay ring-free. Inputs draw their own focus ring. */
+  :where(a, button, [role='radio']):focus-visible {
+    outline: 2px solid var(--crema);
+    outline-offset: 2px;
+  }
+}
+
+/* Shared form controls */
+@utility input {
+  @apply w-full rounded-xl border border-husk bg-oat px-3.5 py-2.5 text-[15px] text-espresso outline-none transition placeholder:text-roast/60 focus:border-crema focus:ring-2 focus:ring-crema/25;
+}
+
+@utility label {
+  @apply mb-1.5 block text-xs font-medium tracking-wide text-roast uppercase;
+}
+
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition active:scale-[0.98] disabled:opacity-50;
+}
+
+@utility btn-primary {
+  @apply btn bg-espresso text-foam hover:opacity-90;
+}
+
+@utility btn-ghost {
+  @apply btn border border-husk bg-oat text-espresso hover:border-crema;
+}
+
+@utility card {
+  @apply rounded-2xl border border-husk bg-oat;
+}
