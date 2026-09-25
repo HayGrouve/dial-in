@@ -29,6 +29,8 @@ export interface Coffee {
   tastingNotes: string[]
   bagWeight?: number
   notes?: string
+  /** 1–5 stars for the coffee itself. */
+  rating?: number
   photo?: Blob
   finished: boolean
   createdAt: number
@@ -50,7 +52,6 @@ export interface Brew {
   temperature?: number
   bloomSec?: number
   taste?: Taste
-  rating?: number
   notes?: string
   /** Marks the setting to return to for this coffee + method. */
   dialedIn: boolean
@@ -73,6 +74,25 @@ db.version(2).upgrade((tx) =>
     delete c.roastDate
   }),
 )
+
+// v3: ratings belong to the coffee, not each brew. Carry over the best brew rating.
+db.version(3).upgrade(async (tx) => {
+  const brews = tx.table('brews')
+  const best = bestBrewRatings(await brews.toArray())
+  await tx.table('coffees').toCollection().modify((c: Coffee) => {
+    if (c.rating == null && best.has(c.id)) c.rating = best.get(c.id)
+  })
+  await brews.toCollection().modify((b: Brew & { rating?: number }) => {
+    delete b.rating
+  })
+})
+
+/** Highest rating per coffee among brews stored before ratings moved to coffees. */
+export function bestBrewRatings(brews: (Brew & { rating?: number })[]) {
+  const best = new Map<string, number>()
+  for (const b of brews) if (b.rating && b.rating > (best.get(b.coffeeId) ?? 0)) best.set(b.coffeeId, b.rating)
+  return best
+}
 
 export const newId = () => crypto.randomUUID()
 

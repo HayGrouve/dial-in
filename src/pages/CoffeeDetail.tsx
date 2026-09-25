@@ -39,6 +39,8 @@ export default function CoffeeDetail() {
 
   const toggleFinished = () => db.coffees.update(id, { finished: !coffee.finished, updatedAt: Date.now() })
 
+  const rate = (rating: number | undefined) => db.coffees.update(id, { rating, updatedAt: Date.now() })
+
   const remove = async () => {
     if (!confirm(`Delete "${coffee.name}" and all ${brews.length} brews?`)) return
     await deleteCoffee(id)
@@ -71,6 +73,9 @@ export default function CoffeeDetail() {
           <div className="min-w-0 flex-1">
             <div className="truncate text-xs font-semibold tracking-wider text-crema-deep uppercase">{coffee.roaster}</div>
             <h1 className="mt-1 font-display text-2xl leading-tight font-semibold tracking-tight">{coffee.name}</h1>
+            <div className="mt-2 -ml-0.5">
+              <Rating value={coffee.rating} onChange={rate} size={20} />
+            </div>
             {coffee.tastingNotes.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {coffee.tastingNotes.map((t) => (
@@ -183,7 +188,6 @@ function BrewRow({ brew }: { brew: Brew }) {
           )}
         </div>
         <p className="num mt-0.5 text-sm text-roast">{specs}</p>
-        {brew.rating && <div className="mt-1"><Rating value={brew.rating} size={13} /></div>}
       </Link>
       <button
         onClick={() => setDialedIn(brew, !brew.dialedIn)}

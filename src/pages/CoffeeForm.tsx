@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useState, type FormEvent } from 'react'
 import { useLocation, useParams } from 'wouter'
-import { Field, Header, PhotoPicker, Section, Segmented, TagInput } from '../components/ui'
+import { Field, Header, PhotoPicker, Rating, Section, Segmented, TagInput } from '../components/ui'
 import { db, newId, PROCESSES, ROAST_LEVELS, type Coffee } from '../lib/db'
 import { dotted } from '../lib/methods'
 
@@ -65,6 +65,9 @@ export default function CoffeeForm() {
           </Field>
           <Field label="Tasting notes">
             <TagInput value={draft.tastingNotes} onChange={(v) => set('tastingNotes', v)} placeholder="blueberry, jasmine, cocoa…" />
+          </Field>
+          <Field label="Your rating" group>
+            <Rating value={draft.rating} onChange={(v) => set('rating', v)} size={28} />
           </Field>
         </Section>
 

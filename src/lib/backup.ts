@@ -1,4 +1,4 @@
-import { db, type Brew, type Coffee } from './db'
+import { bestBrewRatings, db, type Brew, type Coffee } from './db'
 import { blobToDataUrl, dataUrlToBlob } from './image'
 import { getGrinder, setGrinder } from './prefs'
 
@@ -35,13 +35,24 @@ export async function exportBackup() {
 export async function importBackup(file: File) {
   const data = JSON.parse(await file.text()) as BackupFile
   if (data.app !== 'dial-in') throw new Error('This is not a Dial In backup file.')
+  // Older backups rated each brew; move those ratings onto the coffee.
+  const best = bestBrewRatings(data.brews)
+  const brews = data.brews.map((b: Brew & { rating?: number }) => {
+    const copy = { ...b }
+    delete copy.rating
+    return copy as Brew
+  })
   const coffees: Coffee[] = await Promise.all(
-    data.coffees.map(async (c) => ({ ...c, photo: c.photo ? await dataUrlToBlob(c.photo) : undefined })),
+    data.coffees.map(async (c) => ({
+      ...c,
+      rating: c.rating ?? best.get(c.id),
+      photo: c.photo ? await dataUrlToBlob(c.photo) : undefined,
+    })),
   )
   await db.transaction('rw', db.coffees, db.brews, async () => {
     await db.coffees.bulkPut(coffees)
-    await db.brews.bulkPut(data.brews)
+    await db.brews.bulkPut(brews)
   })
   if (data.grinder && !getGrinder()) setGrinder(data.grinder)
-  return { coffees: coffees.length, brews: data.brews.length }
+  return { coffees: coffees.length, brews: brews.length }
 }

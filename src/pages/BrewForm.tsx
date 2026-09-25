@@ -2,7 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useLocation, useParams } from 'wouter'
 import { MethodPicker } from '../components/MethodPicker'
-import { Field, Header, Rating, Section, Segmented, Toggle } from '../components/ui'
+import { Field, Header, Section, Segmented, Toggle } from '../components/ui'
 import { db, newId, setDialedIn, type Brew, type BrewMethod, type Taste } from '../lib/db'
 import { dotted, METHODS, ratio, TASTES } from '../lib/methods'
 import { getGrinder } from '../lib/prefs'
@@ -68,7 +68,7 @@ export default function BrewForm() {
   const changeMethod = async (method: BrewMethod) => {
     if (brewId) return set('method', method)
     const p = await prefill(coffeeId, method)
-    setDraft({ ...p.draft, taste: draft.taste, rating: draft.rating, notes: draft.notes })
+    setDraft({ ...p.draft, taste: draft.taste, notes: draft.notes })
     setGrindHint(p.hint)
   }
 
@@ -186,9 +186,6 @@ export default function BrewForm() {
             />
             {draft.taste && <p className="mt-2 text-sm text-roast">{TASTES[draft.taste].hint}</p>}
           </div>
-          <Field label="Rating" group>
-            <Rating value={draft.rating} onChange={(v) => set('rating', v)} size={28} />
-          </Field>
           <Field label="Notes">
             <textarea className="input min-h-16" placeholder="Channeling? Milk drink? Next time…" value={draft.notes ?? ''} onChange={(e) => set('notes', e.target.value || undefined)} />
           </Field>
