@@ -4,7 +4,7 @@ import { Moon, Monitor, Sun } from '../components/icons'
 import { Field, Header, Section } from '../components/ui'
 import { exportBackup, importBackup } from '../lib/backup'
 import { db } from '../lib/db'
-import { getGrinder, setGrinder } from '../lib/prefs'
+import { getApiKey, getGrinder, setApiKey, setGrinder } from '../lib/prefs'
 import { getThemePref, setThemePref, type ThemePref } from '../lib/theme'
 
 const CHEAT_SHEET = [
@@ -27,6 +27,7 @@ export default function Settings() {
   const [message, setMessage] = useState<string>()
   const [theme, setTheme] = useState(getThemePref)
   const [grinder, setGrinderDraft] = useState(getGrinder)
+  const [apiKey, setApiKeyDraft] = useState(getApiKey)
 
   const onImport = async (file?: File) => {
     if (!file) return
@@ -82,6 +83,30 @@ export default function Settings() {
               }}
             />
           </Field>
+        </Section>
+
+        <Section title="Label reading" hint="Fill in new coffees from photos of the bag">
+          <Field label="Gemini API key">
+            <input
+              className="input"
+              type="password"
+              autoComplete="off"
+              spellCheck={false}
+              placeholder="AIza…"
+              value={apiKey}
+              onChange={(e) => {
+                setApiKeyDraft(e.target.value)
+                setApiKey(e.target.value)
+              }}
+            />
+          </Field>
+          <p className="text-sm text-roast">
+            Bag photos are sent to Google Gemini to read the label. The key stays on this device and is not included in backups. Get one at{' '}
+            <a className="font-semibold text-crema-deep underline" href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">
+              Google AI Studio
+            </a>
+            .
+          </p>
         </Section>
 
         <Section title="Your data" hint={`${counts?.coffees ?? 0} coffees · ${counts?.brews ?? 0} brews`}>

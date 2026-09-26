@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'wouter'
-import { compressImage } from '../lib/image'
-import { Back, Bean, Camera, Chevron, Close, Star } from './icons'
+import { Back, Bean, Chevron, Close, Star } from './icons'
 
 export function Header({ title, back, right }: { title?: ReactNode; back?: string; right?: ReactNode }) {
   return (
@@ -186,68 +185,6 @@ export function BagPhoto({ blob, className = '', iconSize = 36 }: { blob?: Blob;
   return (
     <div className={`grid place-items-center bg-[radial-gradient(circle_at_30%_20%,color-mix(in_oklab,var(--crema)_18%,var(--husk)),var(--husk)_70%)] text-roast/50 ${className}`}>
       <Bean width={iconSize} height={iconSize} />
-    </div>
-  )
-}
-
-export function PhotoPicker({ value, onChange }: { value?: Blob; onChange: (b: Blob | undefined) => void }) {
-  const cameraRef = useRef<HTMLInputElement>(null)
-  const libraryRef = useRef<HTMLInputElement>(null)
-  const [busy, setBusy] = useState(false)
-
-  const handle = async (file?: File) => {
-    if (!file) return
-    setBusy(true)
-    try {
-      onChange(await compressImage(file))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const input = (ref: typeof cameraRef, capture?: boolean) => (
-    <input
-      ref={ref}
-      type="file"
-      accept="image/*"
-      {...(capture ? { capture: 'environment' as const } : {})}
-      className="hidden"
-      onChange={(e) => {
-        void handle(e.target.files?.[0])
-        e.target.value = ''
-      }}
-    />
-  )
-
-  const pill = 'rounded-full bg-espresso/75 px-3 py-1.5 text-xs font-semibold text-foam backdrop-blur hover:bg-espresso'
-
-  return (
-    <div>
-      {value ? (
-        <div className="relative mx-auto w-2/3 max-w-60">
-          <BagPhoto blob={value} className="aspect-[4/5] w-full rounded-2xl border border-husk" />
-          <div className="absolute inset-x-2 bottom-2 flex justify-center gap-1.5">
-            <button type="button" className={pill} onClick={() => cameraRef.current?.click()}>Retake</button>
-            <button type="button" className={pill} onClick={() => libraryRef.current?.click()}>Library</button>
-            <button type="button" className={pill} onClick={() => onChange(undefined)} aria-label="Remove photo"><Close width={14} height={14} /></button>
-          </div>
-        </div>
-      ) : (
-        <div className="flex items-center gap-4 rounded-2xl border border-dashed border-husk p-4">
-          <div className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-crema/15 text-crema-deep">
-            <Camera width={26} height={26} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-sm font-semibold">{busy ? 'Processing…' : 'Photo of the bag'}</div>
-            <div className="mt-2 flex gap-2">
-              <button type="button" className="btn-primary !px-3.5 !py-1.5 !text-xs" onClick={() => cameraRef.current?.click()}>Camera</button>
-              <button type="button" className="btn-ghost !px-3.5 !py-1.5 !text-xs" onClick={() => libraryRef.current?.click()}>Library</button>
-            </div>
-          </div>
-        </div>
-      )}
-      {input(cameraRef, true)}
-      {input(libraryRef)}
     </div>
   )
 }

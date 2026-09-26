@@ -1,5 +1,5 @@
 /** Downscales a photo so bag images stay small in IndexedDB. */
-export async function compressImage(file: File, maxSize = 1280, quality = 0.82): Promise<Blob> {
+export async function compressImage(file: Blob, maxSize = 1280, quality = 0.82): Promise<Blob> {
   const bitmap = await createImageBitmap(file)
   const scale = Math.min(1, maxSize / Math.max(bitmap.width, bitmap.height))
   const canvas = document.createElement('canvas')

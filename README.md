@@ -4,6 +4,7 @@ A grind-size journal for specialty coffee. Snap the bag, log your shots, pin the
 
 ## Features
 
+- **Snap the label** — photograph the front and back of the bag and the details fill themselves in (name, roaster, origin, process, varietal, altitude, roast level, tasting notes, bag size). Gemini reads the label; add your Gemini API key in Settings → Label reading. Only empty fields are filled, so nothing you've typed is overwritten.
 - **Coffee bags** — photo (camera or library, auto-compressed), roaster, origin, region, producer, varietal, process, altitude, roast level, bag size, tasting notes, and a 1–5 star rating for the coffee (tap the stars on its page).
 - **Brews per method** — espresso, pour over, AeroPress, French press, moka pot, cold brew. Fields adapt to the method (yield vs water, pre-infusion for espresso, bloom for filter).
 - **Your grinder, set once** in Settings → Equipment and stamped on every brew. **Any notation** — `14`, `2.5`, `1.5.2` (rotation.number.click), `24 clicks`.
@@ -28,7 +29,7 @@ pnpm build    # typecheck + production build to dist/
 The repo is ready for Vercel as-is — `vercel.json` sets the build, sends every route to the app (so deep links like `/coffee/…` survive a reload), and keeps the service worker uncached so updates roll out.
 
 1. Push this folder to a GitHub repository.
-2. In Vercel, **Add New → Project**, import the repo, and deploy. No environment variables are needed.
+2. In Vercel, **Add New → Project**, import the repo, and deploy. No environment variables are needed (label reading uses the API key you enter in the app's Settings).
 
 Or from the terminal: `pnpm dlx vercel` (preview) and `pnpm dlx vercel --prod`.
 
@@ -38,4 +39,4 @@ Your coffees are stored in the browser on each device, not on Vercel. Use **Sett
 
 ## Stack
 
-Vite · React 19 · TypeScript · Tailwind CSS 4 · Dexie (IndexedDB) · wouter · vite-plugin-pwa
+Vite · React 19 · TypeScript · Tailwind CSS 4 · Dexie (IndexedDB) · wouter · vite-plugin-pwa · Gemini API (label reading)

@@ -1,9 +1,11 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useState, type FormEvent } from 'react'
 import { useLocation, useParams } from 'wouter'
-import { Field, Header, PhotoPicker, Rating, Section, Segmented, TagInput } from '../components/ui'
+import { BagScanner } from '../components/BagScanner'
+import { Field, Header, Rating, Section, Segmented, TagInput } from '../components/ui'
 import { db, newId, PROCESSES, ROAST_LEVELS, type Coffee } from '../lib/db'
 import { dotted } from '../lib/methods'
+import type { ScannedFields } from '../lib/scan'
 
 type Draft = Omit<Coffee, 'id' | 'createdAt' | 'updatedAt'>
 
@@ -30,6 +32,18 @@ export default function CoffeeForm() {
     onChange: (e: { target: { value: string } }) => set(key, (e.target.value || undefined) as never),
   })
 
+  // Label details only fill fields that are still empty, so nothing typed by hand is overwritten.
+  const applyScan = (fields: ScannedFields) =>
+    setDraft((d) => {
+      const next = { ...d }
+      for (const [key, value] of Object.entries(fields) as [keyof ScannedFields, ScannedFields[keyof ScannedFields]][]) {
+        const current = d[key]
+        const empty = Array.isArray(current) ? current.length === 0 : current == null || current === ''
+        if (empty && value != null && !(Array.isArray(value) && value.length === 0)) next[key] = value as never
+      }
+      return next
+    })
+
   const save = async (e: FormEvent) => {
     e.preventDefault()
     const now = Date.now()
@@ -53,7 +67,7 @@ export default function CoffeeForm() {
       <Header title={id ? 'Edit coffee' : 'New coffee'} back={id ? `/coffee/${id}` : '/'} />
 
       <div className="space-y-4">
-        <PhotoPicker value={draft.photo} onChange={(photo) => set('photo', photo)} />
+        <BagScanner front={draft.photo} onFront={(photo) => set('photo', photo)} onScanned={applyScan} />
 
         <Section title="The essentials" hint="Enough to find it again">
           <Field label="Coffee name *">
