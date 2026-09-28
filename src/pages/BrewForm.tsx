@@ -2,10 +2,11 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useLocation, useParams } from 'wouter'
 import { MethodPicker } from '../components/MethodPicker'
+import { OpusDial } from '../components/OpusDial'
 import { Field, Header, Section, Segmented, Toggle } from '../components/ui'
 import { db, newId, setDialedIn, type Brew, type BrewMethod, type Taste } from '../lib/db'
 import { dotted, METHODS, ratio, TASTES } from '../lib/methods'
-import { getGrinder } from '../lib/prefs'
+import { getGrinder, getOpusDial } from '../lib/prefs'
 
 type Draft = Omit<Brew, 'id' | 'coffeeId' | 'createdAt'>
 
@@ -35,6 +36,7 @@ export default function BrewForm() {
   const [, navigate] = useLocation()
   const coffee = useLiveQuery(() => db.coffees.get(coffeeId), [coffeeId])
   const grinder = getGrinder()
+  const opusDial = getOpusDial()
   const [draft, setDraft] = useState<Draft>()
   const [grindHint, setGrindHint] = useState<string>()
 
@@ -135,6 +137,7 @@ export default function BrewForm() {
             />
             <p className="mt-1.5 text-xs text-roast">Any notation — 14, 2.5, 1.5.2, 22 clicks</p>
           </div>
+          {opusDial && <OpusDial value={draft.grindSetting} fallback={grindHint} onChange={(v) => set('grindSetting', v)} />}
         </Section>
 
         <Section title="Recipe" hint={m.isEspresso ? 'Start around 1:2 in 25–30s' : `Start around 1:${m.defaultRatio}`}>
