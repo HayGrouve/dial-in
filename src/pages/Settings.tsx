@@ -1,10 +1,10 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useRef, useState } from 'react'
 import { Moon, Monitor, Sun } from '../components/icons'
-import { Field, Header, Section } from '../components/ui'
+import { Field, Header, Section, Toggle } from '../components/ui'
 import { exportBackup, importBackup } from '../lib/backup'
 import { db } from '../lib/db'
-import { getApiKey, getGrinder, setApiKey, setGrinder } from '../lib/prefs'
+import { getApiKey, getGrinder, getOpusDial, setApiKey, setGrinder, setOpusDial } from '../lib/prefs'
 import { getThemePref, setThemePref, type ThemePref } from '../lib/theme'
 
 const CHEAT_SHEET = [
@@ -28,6 +28,7 @@ export default function Settings() {
   const [theme, setTheme] = useState(getThemePref)
   const [grinder, setGrinderDraft] = useState(getGrinder)
   const [apiKey, setApiKeyDraft] = useState(getApiKey)
+  const [opusDial, setOpusDialDraft] = useState(getOpusDial)
 
   const onImport = async (file?: File) => {
     if (!file) return
@@ -83,6 +84,19 @@ export default function Settings() {
               }}
             />
           </Field>
+          <Toggle
+            checked={opusDial}
+            onChange={(v) => {
+              setOpusDial(v)
+              setOpusDialDraft(v)
+            }}
+            label={
+              <span>
+                <span className="block font-semibold">Fellow Opus dial</span>
+                <span className="text-sm text-roast">A grind wheel on the brew form that works out both rings, including the in-between sizes. For the original Opus, not Opus 2.</span>
+              </span>
+            }
+          />
         </Section>
 
         <Section title="Label reading" hint="Fill in new coffees from photos of the bag">
