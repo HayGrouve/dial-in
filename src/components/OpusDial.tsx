@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { fmtInner, fmtOuter, fmtSize, formatOpus, OPUS_MAX, OPUS_MIN, opusPosition, parseOpus, toTwelfths } from '../lib/opus'
+import { fmtInner, fmtOuter, fmtSize, formatOpus, OPUS_MAX, OPUS_MIN, opusMicrons, opusPosition, parseOpus, toTwelfths } from '../lib/opus'
 import { getOpusInner, setOpusInner } from '../lib/prefs'
 
 const TICK = 14
@@ -73,7 +73,7 @@ export function OpusDial({ value, fallback, onChange }: { value: string; fallbac
           aria-valuemin={OPUS_MIN / 12}
           aria-valuemax={OPUS_MAX / 12}
           aria-valuenow={size / 12}
-          aria-valuetext={pos ? `Outer ${fmtOuter(pos.outer)}, inner ${fmtInner(pos.inner)}` : undefined}
+          aria-valuetext={pos ? `Outer ${fmtOuter(pos.outer)}, inner ${fmtInner(pos.inner)}, about ${opusMicrons(size)} microns` : undefined}
           onScroll={onScroll}
           onKeyDown={(e) => {
             const d = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1, PageDown: -3, PageUp: 3 }[e.key]
@@ -104,8 +104,9 @@ export function OpusDial({ value, fallback, onChange }: { value: string; fallbac
         <button type="button" className="btn-ghost !px-4" onClick={() => step(-1)} disabled={size <= OPUS_MIN}>
           − Finer
         </button>
-        <div className="num flex-1 text-center text-sm text-roast">
+        <div className="num flex-1 text-center text-sm leading-tight text-roast">
           Size <span className="font-semibold text-espresso">{fmtSize(size)}</span>
+          <div className="text-xs">≈ {opusMicrons(size)} µm</div>
         </div>
         <button type="button" className="btn-ghost !px-4" onClick={() => step(1)} disabled={size >= OPUS_MAX}>
           Coarser +

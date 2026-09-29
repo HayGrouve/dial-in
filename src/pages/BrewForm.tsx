@@ -6,6 +6,7 @@ import { OpusDial } from '../components/OpusDial'
 import { Field, Header, Section, Segmented, Toggle } from '../components/ui'
 import { db, newId, setDialedIn, type Brew, type BrewMethod, type Taste } from '../lib/db'
 import { dotted, METHODS, ratio, TASTES } from '../lib/methods'
+import { opusMicrons, parseOpus, toTwelfths } from '../lib/opus'
 import { getGrinder, getOpusDial } from '../lib/prefs'
 
 type Draft = Omit<Brew, 'id' | 'coffeeId' | 'createdAt'>
@@ -91,6 +92,7 @@ export default function BrewForm() {
   }
 
   const r = ratio(draft.dose, draft.yield)
+  const opusPos = opusDial ? parseOpus(draft.grindSetting) : undefined
   const extras = dotted(
     m.isEspresso && draft.preinfusion && `Pre-infusion${draft.preinfusionSec ? ` ${draft.preinfusionSec}s` : ''}`,
     m.hasBloom && draft.bloomSec && `Bloom ${draft.bloomSec}s`,
@@ -135,7 +137,9 @@ export default function BrewForm() {
               value={draft.grindSetting}
               onChange={(e) => set('grindSetting', e.target.value)}
             />
-            <p className="mt-1.5 text-xs text-roast">Any notation — 14, 2.5, 1.5.2, 22 clicks</p>
+            <p className="mt-1.5 text-xs text-roast">
+              {opusPos ? <>≈ <span className="num font-semibold text-espresso">{opusMicrons(toTwelfths(opusPos))}</span> µm on the Opus</> : 'Any notation — 14, 2.5, 1.5.2, 22 clicks'}
+            </p>
           </div>
           {opusDial && <OpusDial value={draft.grindSetting} fallback={grindHint} onChange={(v) => set('grindSetting', v)} />}
         </Section>
