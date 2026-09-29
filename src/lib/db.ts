@@ -43,8 +43,6 @@ export interface Brew {
   method: BrewMethod
   grinder?: string
   grindSetting: string
-  /** Particle size the user noted for this setting, in microns. */
-  microns?: number
   dose?: number
   /** Espresso: beverage weight out. Other methods: water in. */
   yield?: number
