@@ -5,7 +5,7 @@ import { dotted, formatTime, METHODS, ratio } from '../lib/methods'
 export function SettingCard({ brew, provisional }: { brew: Brew; provisional?: boolean }) {
   const m = METHODS[brew.method]
   const amounts = brew.dose != null && brew.yield != null ? `${brew.dose}g → ${brew.yield}g` : brew.dose != null && `${brew.dose}g in`
-  const recipe = dotted(amounts, ratio(brew.dose, brew.yield), formatTime(brew.timeSec))
+  const recipe = dotted(brew.microns != null && `${brew.microns} µm`, amounts, ratio(brew.dose, brew.yield), formatTime(brew.timeSec))
   const extras = dotted(
     brew.preinfusion && `Pre-infusion${brew.preinfusionSec ? ` ${brew.preinfusionSec}s` : ''}`,
     brew.bloomSec && `Bloom ${brew.bloomSec}s`,

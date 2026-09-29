@@ -6,7 +6,6 @@ import { OpusDial } from '../components/OpusDial'
 import { Field, Header, Section, Segmented, Toggle } from '../components/ui'
 import { db, newId, setDialedIn, type Brew, type BrewMethod, type Taste } from '../lib/db'
 import { dotted, METHODS, ratio, TASTES } from '../lib/methods'
-import { opusMicrons, parseOpus, toTwelfths } from '../lib/opus'
 import { getGrinder, getOpusDial } from '../lib/prefs'
 
 type Draft = Omit<Brew, 'id' | 'coffeeId' | 'createdAt'>
@@ -21,8 +20,8 @@ async function prefill(coffeeId: string, method: BrewMethod): Promise<{ draft: D
   const recent = await db.brews.where('method').equals(method).reverse().sortBy('createdAt')
   const same = recent.find((b) => b.coffeeId === coffeeId)
   if (same) {
-    const { grindSetting, dose, yield: y, timeSec, preinfusion, preinfusionSec, temperature, bloomSec } = same
-    return { draft: { ...blank(method), grindSetting, dose, yield: y, timeSec, preinfusion, preinfusionSec, temperature, bloomSec } }
+    const { grindSetting, microns, dose, yield: y, timeSec, preinfusion, preinfusionSec, temperature, bloomSec } = same
+    return { draft: { ...blank(method), grindSetting, microns, dose, yield: y, timeSec, preinfusion, preinfusionSec, temperature, bloomSec } }
   }
   const other = recent[0]
   if (other) {
@@ -59,7 +58,7 @@ export default function BrewForm() {
 
   const m = METHODS[draft.method]
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((d) => d && { ...d, [key]: value })
-  const num = (key: 'dose' | 'yield' | 'timeSec' | 'preinfusionSec' | 'temperature' | 'bloomSec') => ({
+  const num = (key: 'microns' | 'dose' | 'yield' | 'timeSec' | 'preinfusionSec' | 'temperature' | 'bloomSec') => ({
     value: draft[key] ?? '',
     onChange: (e: { target: { value: string } }) => set(key, e.target.value === '' ? undefined : Number(e.target.value)),
     type: 'number',
@@ -92,7 +91,6 @@ export default function BrewForm() {
   }
 
   const r = ratio(draft.dose, draft.yield)
-  const opusPos = opusDial ? parseOpus(draft.grindSetting) : undefined
   const extras = dotted(
     m.isEspresso && draft.preinfusion && `Pre-infusion${draft.preinfusionSec ? ` ${draft.preinfusionSec}s` : ''}`,
     m.hasBloom && draft.bloomSec && `Bloom ${draft.bloomSec}s`,
@@ -137,9 +135,13 @@ export default function BrewForm() {
               value={draft.grindSetting}
               onChange={(e) => set('grindSetting', e.target.value)}
             />
-            <p className="mt-1.5 text-xs text-roast">
-              {opusPos ? <>≈ <span className="num font-semibold text-espresso">{opusMicrons(toTwelfths(opusPos))}</span> µm on the Opus</> : 'Any notation — 14, 2.5, 1.5.2, 22 clicks'}
-            </p>
+            <div className="mt-1.5 flex items-center gap-3">
+              <p className="flex-1 text-xs text-roast">Any notation — 14, 2.5, 1.5.2, 22 clicks</p>
+              <label className="flex shrink-0 items-center gap-1.5 text-xs text-roast">
+                <input {...num('microns')} min={0} step={1} aria-label="Particle size in microns" placeholder="—" className="input num w-20 !py-1.5 text-right" />
+                µm
+              </label>
+            </div>
           </div>
           {opusDial && <OpusDial value={draft.grindSetting} fallback={grindHint} onChange={(v) => set('grindSetting', v)} />}
         </Section>

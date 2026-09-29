@@ -171,6 +171,7 @@ export default function CoffeeDetail() {
 function BrewRow({ brew }: { brew: Brew }) {
   const m = METHODS[brew.method]
   const specs = dotted(
+    brew.microns != null && `${brew.microns} µm`,
     brew.dose != null && brew.yield != null ? `${brew.dose}g → ${brew.yield}g` : brew.dose != null && `${brew.dose}g`,
     ratio(brew.dose, brew.yield),
     formatTime(brew.timeSec),
