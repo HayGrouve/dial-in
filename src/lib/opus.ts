@@ -52,3 +52,10 @@ export function parseOpus(text: string | undefined): OpusPosition | undefined {
 }
 
 export const toTwelfths = ({ outer, inner }: OpusPosition) => outer * 12 + 2 * inner
+
+/** Published range: ~230 µm at outer 1 to ~1160 µm at outer 11, roughly linear across the dial. */
+const MICRONS_AT_1 = 230
+const MICRONS_PER_TWELFTH = (1160 - 230) / 120
+
+/** Approximate particle size for a grind size, rounded to 5 µm — the spec is only that precise. */
+export const opusMicrons = (twelfths: number) => Math.round((MICRONS_AT_1 + (twelfths - 12) * MICRONS_PER_TWELFTH) / 5) * 5
