@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { Link, useLocation, useParams } from 'wouter'
 import { SettingCard } from '../components/SettingCard'
 import { Pin, Plus, Trash } from '../components/icons'
@@ -76,15 +76,22 @@ export default function CoffeeDetail() {
             <div className="mt-2 -ml-0.5">
               <Rating value={coffee.rating} onChange={rate} size={20} />
             </div>
-            {coffee.tastingNotes.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {coffee.tastingNotes.map((t) => (
-                  <span key={t} className="rounded-full bg-crema/15 px-2.5 py-0.5 text-sm text-crema-deep">{t}</span>
-                ))}
-              </div>
-            )}
           </div>
         </div>
+
+        {/* Full width under the photo so long lists wrap in a line or two instead of a tall pill column */}
+        {coffee.tastingNotes.length > 0 && (
+          <p className="-mt-1 px-4 pb-4 text-sm leading-relaxed text-crema-deep">
+            {coffee.tastingNotes.map((t, i) => (
+              <Fragment key={t}>
+                {i > 0 && ' '}
+                {t}
+                {/* Glued to the note before it so a wrapped line never starts with a dot */}
+                {i < coffee.tastingNotes.length - 1 && <span className="ml-1.5 mr-0.5 text-crema-deep/40" aria-hidden>·</span>}
+              </Fragment>
+            ))}
+          </p>
+        )}
 
         <div className="flex items-center justify-between gap-3 border-t border-husk px-4 py-2">
           <span className="min-w-0 truncate text-sm text-roast">
