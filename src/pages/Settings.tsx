@@ -60,11 +60,11 @@ export default function Settings() {
                     setThemePref(value)
                     setTheme(value)
                   }}
-                  className={`flex flex-col items-center gap-1.5 rounded-xl border py-3 text-sm font-medium transition ${
-                    active ? 'border-crema bg-crema/10 text-espresso' : 'border-husk text-roast hover:border-crema/60'
+                  className={`flex flex-col items-center gap-1.5 rounded-[20px] border py-3 text-sm font-medium transition ${
+                    active ? 'border-accent bg-accent/10 text-ink' : 'border-line text-muted hover:border-accent/60'
                   }`}
                 >
-                  <Icon className={active ? 'text-crema-deep' : ''} />
+                  <Icon className={active ? 'text-accent-fg' : ''} />
                   {label}
                 </button>
               )
@@ -93,7 +93,7 @@ export default function Settings() {
             label={
               <span>
                 <span className="block font-semibold">Fellow Opus dial</span>
-                <span className="text-sm text-roast">A grind wheel on the brew form that works out both rings, including the in-between sizes. For the original Opus, not Opus 2.</span>
+                <span className="text-sm text-muted">A grind wheel on the brew form that works out both rings, including the in-between sizes. For the original Opus, not Opus 2.</span>
               </span>
             }
           />
@@ -114,9 +114,9 @@ export default function Settings() {
               }}
             />
           </Field>
-          <p className="text-sm text-roast">
+          <p className="text-sm text-muted">
             Bag photos are sent to Google Gemini to read the label. The key stays on this device and is not included in backups. Get one at{' '}
-            <a className="font-semibold text-crema-deep underline" href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">
+            <a className="font-semibold text-accent-fg underline" href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">
               Google AI Studio
             </a>
             .
@@ -124,7 +124,7 @@ export default function Settings() {
         </Section>
 
         <Section title="Your data" hint={`${counts?.coffees ?? 0} coffees · ${counts?.brews ?? 0} brews`}>
-          <p className="text-sm text-roast">Everything lives only on this device. Export a backup now and then, or to move to a new phone.</p>
+          <p className="text-sm text-muted">Everything lives only on this device. Export a backup now and then, or to move to a new phone.</p>
           <div className="grid grid-cols-2 gap-2">
             <button className="btn-primary" onClick={() => void exportBackup()}>
               Export backup
@@ -134,17 +134,17 @@ export default function Settings() {
             </button>
           </div>
           <input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={(e) => void onImport(e.target.files?.[0])} />
-          {message && <p className="text-sm font-medium text-crema-deep">{message}</p>}
+          {message && <p className="text-sm font-medium text-accent-fg">{message}</p>}
         </Section>
 
         <Section title="Dial-in cheat sheet" summary="Five rules for dialing in a new bag" collapsible defaultOpen={false}>
           <ol className="space-y-3">
             {CHEAT_SHEET.map(([title, body], i) => (
               <li key={title} className="flex gap-3">
-                <span className="num w-5 shrink-0 font-display text-xl font-semibold text-crema">{i + 1}</span>
+                <span className="num w-5 shrink-0 font-mono text-xl font-semibold text-accent-fg">{i + 1}</span>
                 <div>
                   <div className="font-semibold">{title}</div>
-                  <div className="text-sm text-roast">{body}</div>
+                  <div className="text-sm text-muted">{body}</div>
                 </div>
               </li>
             ))}

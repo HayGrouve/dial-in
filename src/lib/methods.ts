@@ -1,4 +1,4 @@
-import type { BrewMethod, Taste } from './db'
+import type { Brew, BrewMethod, Taste } from './db'
 
 interface MethodInfo {
   label: string
@@ -45,3 +45,45 @@ export function shortDate(date: string | number) {
 
 /** Joins the truthy parts with a middle dot — used for one-line summaries. */
 export const dotted = (...parts: (string | number | false | null | undefined)[]) => parts.filter(Boolean).join(' · ')
+
+/** Compact method tags for one-line setting summaries. */
+export const METHOD_SHORT: Record<BrewMethod, string> = {
+  espresso: 'ESP',
+  pourover: 'POUR',
+  aeropress: 'AERO',
+  frenchpress: 'PRESS',
+  moka: 'MOKA',
+  coldbrew: 'COLD',
+  other: 'OTHER',
+}
+
+/** What to change after an off brew, phrased to follow the grind setting. */
+export function nextMove(taste: Taste) {
+  if (taste === 'sour') return 'ran sour. Grind finer or pull a longer ratio.'
+  if (taste === 'bitter') return 'ran bitter. Grind coarser or cut the brew short.'
+  return undefined
+}
+
+/** "Log an espresso", "Log a pour over". */
+export const logLabel = (method: BrewMethod) => {
+  const label = METHODS[method].label.toLowerCase()
+  return `Log ${/^[aeiou]/.test(label) ? 'an' : 'a'} ${label}`
+}
+
+export function relativeDay(t: number) {
+  const days = Math.floor((new Date().setHours(0, 0, 0, 0) - new Date(t).setHours(0, 0, 0, 0)) / 86_400_000)
+  if (days <= 0) return 'Today'
+  if (days === 1) return 'Yesterday'
+  if (days < 7) return `${days} days ago`
+  return shortDate(t)
+}
+
+/** One entry per method used: the pinned brew, or the latest try as a fallback. Expects brews newest first. */
+export function settingsFor(brews: Brew[]) {
+  return METHOD_ORDER.flatMap((m) => {
+    const forMethod = brews.filter((b) => b.method === m)
+    const pinned = forMethod.find((b) => b.dialedIn)
+    if (pinned) return [{ brew: pinned, provisional: false, tries: forMethod }]
+    return forMethod[0] ? [{ brew: forMethod[0], provisional: true, tries: forMethod }] : []
+  })
+}

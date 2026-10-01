@@ -1,46 +1,29 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Fragment, useState } from 'react'
+import { useState } from 'react'
 import { Link, useLocation, useParams } from 'wouter'
-import { SettingCard } from '../components/SettingCard'
-import { Pin, Plus, Trash } from '../components/icons'
-import { BagPhoto, Header, PhotoViewer, Rating, Section } from '../components/ui'
-import { db, deleteCoffee, setDialedIn, type Brew } from '../lib/db'
-import { dotted, formatTime, METHODS, METHOD_ORDER, ratio, shortDate, TASTES } from '../lib/methods'
+import { Back, Pin, Plus, Trash } from '../components/icons'
+import { BagPhoto, PhotoViewer, Rating } from '../components/ui'
+import { db, deleteCoffee, setDialedIn, type Brew, type BrewMethod, type Coffee } from '../lib/db'
+import { formatTime, logLabel, METHODS, nextMove, ratio, relativeDay, settingsFor } from '../lib/methods'
 
-const tasteColor = { sour: 'text-citrus', balanced: 'text-roast', bitter: 'text-char' } as const
+const TASTE_WORD = { sour: 'Sour', balanced: 'Balanced', bitter: 'Bitter' } as const
 
 export default function CoffeeDetail() {
   const { id } = useParams<{ id: string }>()
   const [, navigate] = useLocation()
   const [viewing, setViewing] = useState(false)
+  const [picked, setPicked] = useState<BrewMethod>()
   const coffee = useLiveQuery(() => db.coffees.get(id), [id])
   const brews = useLiveQuery(() => db.brews.where('coffeeId').equals(id).reverse().sortBy('createdAt'), [id])
 
   if (coffee === undefined || brews === undefined) return null
-  if (!coffee) return <p className="py-20 text-center text-roast">Coffee not found.</p>
+  if (!coffee) return <p className="py-20 text-center text-muted">Coffee not found.</p>
 
-  // One card per method used: the pinned brew, or the latest attempt as a fallback.
-  const settings = METHOD_ORDER.flatMap((m) => {
-    const forMethod = brews.filter((b) => b.method === m)
-    const pinned = forMethod.find((b) => b.dialedIn)
-    if (pinned) return [{ brew: pinned, provisional: false }]
-    return forMethod[0] ? [{ brew: forMethod[0], provisional: true }] : []
-  })
-
-  const facts = [
-    ['Origin', dotted(coffee.origin, coffee.region)],
-    ['Process', coffee.process],
-    ['Varietal', coffee.varietal],
-    ['Producer', coffee.producer],
-    ['Altitude', coffee.altitude],
-    ['Roast', coffee.roastLevel],
-    ['Bag', coffee.bagWeight && `${coffee.bagWeight}g`],
-  ].filter(([, v]) => v) as [string, string][]
+  const settings = settingsFor(brews)
+  const current = settings.find((s) => s.brew.method === picked) ?? settings[0]
 
   const toggleFinished = () => db.coffees.update(id, { finished: !coffee.finished, updatedAt: Date.now() })
-
   const rate = (rating: number | undefined) => db.coffees.update(id, { rating, updatedAt: Date.now() })
-
   const remove = async () => {
     if (!confirm(`Delete "${coffee.name}" and all ${brews.length} brews?`)) return
     await deleteCoffee(id)
@@ -49,125 +32,97 @@ export default function CoffeeDetail() {
 
   return (
     <>
-      <Header
-        back="/"
-        right={
-          <Link href={`/coffee/${id}/edit`} className="btn-ghost !px-4 !py-1.5">
+      {/* Full-bleed bag photo fading into the page; the name sits over its lower edge */}
+      <div className="relative -mx-4 sm:mx-0 sm:mt-4 sm:overflow-hidden sm:rounded-t-[28px]">
+        <button
+          type="button"
+          onClick={() => coffee.photo && setViewing(true)}
+          disabled={!coffee.photo}
+          aria-label={coffee.photo ? 'View bag photo' : undefined}
+          className="block w-full"
+        >
+          <BagPhoto blob={coffee.photo} className="h-[min(48dvh,420px)] w-full" iconSize={56} />
+        </button>
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-canvas/40 via-transparent via-35% to-canvas to-85%" />
+        <div className="absolute inset-x-0 top-0 flex items-center justify-between px-4 pt-[max(env(safe-area-inset-top),0.75rem)]">
+          <Link href="/" className="rounded-full bg-canvas/70 p-2.5 backdrop-blur-md" aria-label="Back to shelf">
+            <Back />
+          </Link>
+          <Link href={`/coffee/${id}/edit`} className="rounded-full bg-canvas/70 px-4 py-2 text-sm font-medium backdrop-blur-md">
             Edit
           </Link>
-        }
-      />
-
-      {/* Identity card: what the coffee is on top, the bag's status and actions in the footer */}
-      <div className="card overflow-hidden">
-        <div className="flex gap-4 p-4">
-          <button
-            type="button"
-            onClick={() => coffee.photo && setViewing(true)}
-            className="shrink-0 self-start overflow-hidden rounded-xl border border-husk"
-            aria-label={coffee.photo ? 'View bag photo' : undefined}
-            disabled={!coffee.photo}
-          >
-            <BagPhoto blob={coffee.photo} className="aspect-[4/5] w-24 sm:w-28" iconSize={28} />
-          </button>
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-xs font-semibold tracking-wider text-crema-deep uppercase">{coffee.roaster}</div>
-            <h1 className="mt-1 font-display text-2xl leading-tight font-semibold tracking-tight">{coffee.name}</h1>
-            <div className="mt-2 -ml-0.5">
-              <Rating value={coffee.rating} onChange={rate} size={20} />
-            </div>
-          </div>
-        </div>
-
-        {/* Full width under the photo so long lists wrap in a line or two instead of a tall pill column */}
-        {coffee.tastingNotes.length > 0 && (
-          <p className="-mt-1 px-4 pb-4 text-sm leading-relaxed text-crema-deep">
-            {coffee.tastingNotes.map((t, i) => (
-              <Fragment key={t}>
-                {i > 0 && ' '}
-                {t}
-                {/* Glued to the note before it so a wrapped line never starts with a dot */}
-                {i < coffee.tastingNotes.length - 1 && <span className="ml-1.5 mr-0.5 text-crema-deep/40" aria-hidden>·</span>}
-              </Fragment>
-            ))}
-          </p>
-        )}
-
-        <div className="flex items-center justify-between gap-3 border-t border-husk px-4 py-2">
-          <span className="min-w-0 truncate text-sm text-roast">
-            {coffee.finished ? 'Finished' : 'On the shelf'}
-          </span>
-          <div className="flex shrink-0 items-center gap-1">
-            <button
-              onClick={toggleFinished}
-              className="rounded-full px-3 py-1.5 text-sm font-medium text-espresso transition hover:bg-husk"
-            >
-              {coffee.finished ? 'Restock' : 'Finish bag'}
-            </button>
-            <button
-              onClick={remove}
-              className="rounded-full p-2 text-char transition hover:bg-char/10"
-              aria-label="Delete coffee"
-              title="Delete coffee"
-            >
-              <Trash width={16} height={16} />
-            </button>
-          </div>
         </div>
       </div>
 
-      {/* The reason the app exists: the numbers to return to */}
-      <section className="mt-6">
-        <h2 className="mb-3 font-display text-xl font-semibold">Your settings</h2>
-        {settings.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-husk px-5 py-6 text-center text-sm text-balance text-roast">
-            No brews yet. Log your first shot to start dialing in.
-          </p>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {settings.map(({ brew, provisional }) => (
-              <Link key={brew.id} href={`/coffee/${id}/brew/${brew.id}`} className="block rounded-2xl">
-                <SettingCard brew={brew} provisional={provisional} />
-              </Link>
-            ))}
+      <div className="relative -mt-24 pb-32">
+        <div className="rise">
+          <p className="truncate text-sm text-muted">{[coffee.roaster, coffee.origin].filter(Boolean).join(', ')}</p>
+          <h1 className="mt-1 text-[40px] leading-[1.02] font-semibold tracking-[-0.03em]">{coffee.name}</h1>
+          {coffee.tastingNotes.length > 0 && <p className="mt-2 text-lg text-accent-fg">{coffee.tastingNotes.join(', ')}</p>}
+          <div className="mt-2 -ml-1">
+            <Rating value={coffee.rating} onChange={rate} size={20} />
           </div>
-        )}
-        <Link href={`/coffee/${id}/brew/new`} className="btn-primary mt-3 w-full !py-3.5">
-          <Plus width={18} height={18} /> Log a brew
-        </Link>
-      </section>
+        </div>
 
-      <div className="mt-6 space-y-4">
-        {brews.length > 0 && (
-          <Section
-            title="Dial-in log"
-            summary={dotted(`${brews.length} ${brews.length === 1 ? 'brew' : 'brews'}`, `last ${shortDate(brews[0].createdAt)}`)}
-            collapsible
-            defaultOpen={false}
-            flush
-          >
-            <ul className="divide-y divide-husk">
-              {brews.map((b) => <BrewRow key={b.id} brew={b} />)}
-            </ul>
-          </Section>
-        )}
-
-        {(facts.length > 0 || coffee.notes) && (
-          <Section title="About this coffee" summary={dotted(coffee.origin, coffee.process, coffee.roastLevel && `${coffee.roastLevel} roast`) || 'Details and notes'} collapsible defaultOpen={false}>
-            {facts.length > 0 && (
-              <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-                {facts.map(([k, v]) => (
-                  <div key={k}>
-                    <dt className="text-xs tracking-wide text-roast uppercase">{k}</dt>
-                    <dd className="font-medium">{v}</dd>
-                  </div>
-                ))}
-              </dl>
+        {current ? (
+          <>
+            {settings.length > 1 && (
+              <div className="-mx-4 mt-7 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none]" role="tablist" aria-label="Brew method">
+                {settings.map(({ brew }) => {
+                  const on = brew.method === current.brew.method
+                  return (
+                    <button
+                      key={brew.method}
+                      type="button"
+                      role="tab"
+                      aria-selected={on}
+                      onClick={() => setPicked(brew.method)}
+                      className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition ${on ? 'bg-ink text-canvas' : 'bg-surface text-muted hover:text-ink'}`}
+                    >
+                      {METHODS[brew.method].label}
+                    </button>
+                  )
+                })}
+              </div>
             )}
-            {coffee.notes && <p className="text-sm whitespace-pre-line text-roast">{coffee.notes}</p>}
-          </Section>
+
+            <SettingCard key={current.brew.method} brew={current.brew} provisional={current.provisional} tries={current.tries} />
+
+            {current.tries.length > 1 && (
+              <section className="mt-8">
+                <h2 className="mb-4 text-xl font-semibold tracking-tight">How you got here</h2>
+                <ol className="relative ml-2 border-l border-line">
+                  {current.tries.map((b) => (
+                    <TryRow key={b.id} brew={b} />
+                  ))}
+                </ol>
+              </section>
+            )}
+          </>
+        ) : (
+          <p className="card mt-8 p-6 text-balance text-muted">No brews yet. Log your first one and the setting to remember will live here.</p>
         )}
 
+        <About coffee={coffee} />
+
+        <div className="mt-10 flex flex-wrap items-center gap-2">
+          <button type="button" onClick={toggleFinished} className="btn-ghost">
+            {coffee.finished ? 'Bought it again' : 'Finish bag'}
+          </button>
+          <button type="button" onClick={remove} className="btn-ghost !text-bitter">
+            <Trash width={16} height={16} /> Delete
+          </button>
+          {coffee.finished && <span className="text-sm text-muted">This bag is finished.</span>}
+        </div>
+      </div>
+
+      <div className="fixed inset-x-0 bottom-0 z-20 bg-gradient-to-t from-canvas from-50% to-transparent px-4 pt-8 pb-[max(env(safe-area-inset-bottom),1rem)]">
+        <Link
+          href={`/coffee/${id}/brew/new${current ? `?method=${current.brew.method}` : ''}`}
+          className="btn-primary mx-auto !flex w-full max-w-[44rem] !py-4 !text-base"
+        >
+          <Plus width={18} height={18} /> {current ? logLabel(current.brew.method) : 'Log a brew'}
+        </Link>
       </div>
 
       {viewing && coffee.photo && <PhotoViewer blob={coffee.photo} onClose={() => setViewing(false)} />}
@@ -175,35 +130,132 @@ export default function CoffeeDetail() {
   )
 }
 
-function BrewRow({ brew }: { brew: Brew }) {
+/** The number to come back to, the recipe around it, and what to do next. */
+function SettingCard({ brew, provisional, tries }: { brew: Brew; provisional: boolean; tries: Brew[] }) {
   const m = METHODS[brew.method]
-  const specs = dotted(
-    brew.dose != null && brew.yield != null ? `${brew.dose}g → ${brew.yield}g` : brew.dose != null && `${brew.dose}g`,
-    ratio(brew.dose, brew.yield),
-    formatTime(brew.timeSec),
-    shortDate(brew.createdAt),
-  )
+  const latest = tries[0]
+  const move = latest.taste && nextMove(latest.taste)
+  const extras = [
+    brew.preinfusion && `Pre-infusion${brew.preinfusionSec ? ` ${brew.preinfusionSec}s` : ''}`,
+    brew.bloomSec && `Bloom ${brew.bloomSec}s`,
+    brew.temperature && `${brew.temperature}°C`,
+  ].filter(Boolean)
+  const stats = [
+    ['Dose', brew.dose != null && `${brew.dose}g`],
+    [m.isEspresso ? 'Out' : 'Water', brew.yield != null && `${brew.yield}g`],
+    ['Ratio', ratio(brew.dose, brew.yield)],
+    ['Time', formatTime(brew.timeSec)],
+  ] as const
 
   return (
-    <li className="flex items-center gap-3 px-4 py-3">
-      <Link href={`/coffee/${brew.coffeeId}/brew/${brew.id}`} className="min-w-0 flex-1">
-        <div className="flex items-baseline gap-2">
-          <span className="num font-display text-xl font-semibold">{brew.grindSetting}</span>
-          <span className="text-xs font-semibold tracking-wider text-crema-deep uppercase">{m.label}</span>
-          {brew.taste && (
-            <span className={`text-xs font-medium ${tasteColor[brew.taste]}`}>{TASTES[brew.taste].label}</span>
-          )}
+    <section className="rise card mt-6 p-5">
+      <Link href={`/coffee/${brew.coffeeId}/brew/${brew.id}`} className="block">
+        <div className="flex items-center justify-between gap-3 text-sm text-muted">
+          <span>{provisional ? 'Still dialing' : 'Your setting'}</span>
+          {brew.grinder && <span className="truncate">{brew.grinder}</span>}
         </div>
-        <p className="num mt-0.5 text-sm text-roast">{specs}</p>
+        <div
+          className={`mt-1 font-mono leading-none font-semibold text-accent-fg ${
+            brew.grindSetting.length > 6 ? 'text-5xl tracking-tight' : 'text-[96px] tracking-[-0.07em]'
+          }`}
+        >
+          {brew.grindSetting || '-'}
+        </div>
+        <dl className="mt-6 grid grid-cols-4 gap-2">
+          {stats.map(([k, v]) => (
+            <div key={k}>
+              <dt className="text-xs text-muted">{k}</dt>
+              <dd className="mt-0.5 font-mono text-[17px] font-medium">{v || '-'}</dd>
+            </div>
+          ))}
+        </dl>
+        {extras.length > 0 && <p className="mt-3 font-mono text-sm text-muted">{extras.join(', ')}</p>}
       </Link>
-      <button
-        onClick={() => setDialedIn(brew, !brew.dialedIn)}
-        className={`rounded-full p-2.5 transition ${brew.dialedIn ? 'bg-crema/15 text-crema-deep' : 'text-roast/50 hover:bg-husk hover:text-espresso'}`}
-        aria-label={brew.dialedIn ? 'Unpin dialed-in setting' : 'Pin as dialed-in setting'}
-        title={brew.dialedIn ? 'Dialed in' : 'Pin as dialed in'}
-      >
-        <Pin width={18} height={18} />
-      </button>
+
+      <div className="mt-5 flex items-center gap-3 rounded-[20px] bg-tint px-4 py-3 text-sm">
+        <p className="flex-1">
+          {move ? (
+            <>
+              Last try at <span className="font-mono">{latest.grindSetting}</span> {move}
+            </>
+          ) : provisional ? (
+            <>
+              Tasting right? Pin <span className="font-mono">{latest.grindSetting}</span> so it's waiting next time.
+            </>
+          ) : (
+            <>
+              Pinned {relativeDay(brew.createdAt).toLowerCase()}, after {tries.length} {tries.length === 1 ? 'try' : 'tries'}.
+            </>
+          )}
+        </p>
+        {provisional && !move && (
+          <button type="button" onClick={() => setDialedIn(latest, true)} className="btn shrink-0 bg-ink !px-4 !py-2 text-canvas">
+            <Pin width={16} height={16} /> Pin
+          </button>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function TryRow({ brew: b }: { brew: Brew }) {
+  return (
+    <li className="relative pb-5 pl-6 last:pb-0">
+      <span
+        className={`absolute top-2 -left-[5px] h-[9px] w-[9px] rounded-full ${b.dialedIn ? 'bg-accent' : 'border border-muted bg-canvas'}`}
+        aria-hidden
+      />
+      <div className="flex items-start gap-2">
+        <Link href={`/coffee/${b.coffeeId}/brew/${b.id}`} className="min-w-0 flex-1">
+          <div className="flex items-baseline gap-3">
+            <span className="font-mono text-lg font-semibold">{b.grindSetting}</span>
+            <span className="text-sm">{b.taste ? TASTE_WORD[b.taste] : 'No verdict'}</span>
+            <span className="ml-auto shrink-0 text-sm text-muted">{relativeDay(b.createdAt)}</span>
+          </div>
+          <p className="font-mono text-xs text-muted">
+            {[b.dose != null && b.yield != null ? `${b.dose}g to ${b.yield}g` : b.dose != null && `${b.dose}g`, formatTime(b.timeSec)].filter(Boolean).join(', ')}
+          </p>
+          {b.notes && <p className="mt-1 text-sm text-muted">{b.notes}</p>}
+        </Link>
+        <button
+          type="button"
+          onClick={() => setDialedIn(b, !b.dialedIn)}
+          className={`-mt-1 rounded-full p-2 transition ${b.dialedIn ? 'text-accent-fg' : 'text-muted/60 hover:bg-surface hover:text-ink'}`}
+          aria-label={b.dialedIn ? 'Unpin dialed-in setting' : 'Pin as dialed-in setting'}
+          aria-pressed={b.dialedIn}
+        >
+          <Pin width={18} height={18} />
+        </button>
+      </div>
     </li>
+  )
+}
+
+function About({ coffee }: { coffee: Coffee }) {
+  const facts = [
+    ['Process', coffee.process],
+    ['Varietal', coffee.varietal],
+    ['Region', coffee.region],
+    ['Producer', coffee.producer],
+    ['Altitude', coffee.altitude],
+    ['Roast', coffee.roastLevel],
+    ['Bag', coffee.bagWeight && `${coffee.bagWeight}g`],
+  ].filter(([, v]) => v) as [string, string][]
+  if (!facts.length && !coffee.notes) return null
+  return (
+    <section className="mt-10">
+      <h2 className="mb-4 text-xl font-semibold tracking-tight">About the coffee</h2>
+      {facts.length > 0 && (
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-4">
+          {facts.map(([k, v]) => (
+            <div key={k}>
+              <dt className="text-sm text-muted">{k}</dt>
+              <dd className="font-medium">{v}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {coffee.notes && <p className="mt-4 text-sm whitespace-pre-line text-muted">{coffee.notes}</p>}
+    </section>
   )
 }

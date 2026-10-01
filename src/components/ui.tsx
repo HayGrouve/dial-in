@@ -4,13 +4,13 @@ import { Back, Bean, Chevron, Close, Star } from './icons'
 
 export function Header({ title, back, right }: { title?: ReactNode; back?: string; right?: ReactNode }) {
   return (
-    <header className="sticky top-0 z-20 -mx-4 mb-4 flex items-center gap-2 bg-foam/85 px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-3 backdrop-blur">
+    <header className="sticky top-0 z-20 -mx-4 mb-4 flex items-center gap-2 bg-canvas/85 px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-3 backdrop-blur">
       {back && (
-        <Link href={back} className="-ml-2 rounded-full p-2 text-roast hover:text-espresso" aria-label="Back">
+        <Link href={back} className="-ml-2 rounded-full p-2 text-muted hover:text-ink" aria-label="Back">
           <Back />
         </Link>
       )}
-      <div className="min-w-0 flex-1 truncate font-display text-lg font-semibold">{title}</div>
+      <div className="min-w-0 flex-1 truncate text-lg font-semibold tracking-tight">{title}</div>
       {right}
     </header>
   )
@@ -43,8 +43,8 @@ export function Section({
   const sub = !isOpen && summary ? summary : hint
   const heading = (
     <div className="min-w-0 flex-1">
-      <h2 className="font-display text-lg leading-tight font-semibold">{title}</h2>
-      {sub && <p className="mt-0.5 truncate text-sm text-roast">{sub}</p>}
+      <h2 className="text-lg leading-tight font-semibold tracking-tight">{title}</h2>
+      {sub && <p className="mt-0.5 truncate text-sm text-muted">{sub}</p>}
     </div>
   )
 
@@ -53,12 +53,12 @@ export function Section({
       {collapsible ? (
         <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="flex w-full items-center gap-3 p-4 text-left">
           {heading}
-          <Chevron className={`shrink-0 text-roast transition-transform ${open ? 'rotate-180' : ''}`} />
+          <Chevron className={`shrink-0 text-muted transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
       ) : (
         <div className="flex items-center gap-3 p-4 pb-3">{heading}</div>
       )}
-      {isOpen && <div className={flush ? 'border-t border-husk' : 'space-y-4 px-4 pb-4'}>{children}</div>}
+      {isOpen && <div className={flush ? 'border-t border-line' : 'space-y-4 px-4 pb-4'}>{children}</div>}
     </section>
   )
 }
@@ -92,8 +92,8 @@ export function Segmented<T extends string>({
             key={o.value}
             type="button"
             onClick={() => onChange(o.value)}
-            className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition ${
-              active ? (o.className ?? 'border-espresso bg-espresso text-foam') : 'border-husk bg-oat text-roast hover:border-crema'
+            className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
+              active ? (o.className ?? 'border-ink bg-ink text-canvas') : 'border-line text-muted hover:bg-tint hover:text-ink'
             }`}
           >
             {o.label}
@@ -108,8 +108,8 @@ export function Toggle({ checked, onChange, label }: { checked: boolean; onChang
   return (
     <button type="button" onClick={() => onChange(!checked)} className="flex w-full items-center justify-between gap-3 py-1 text-left">
       <span className="text-[15px]">{label}</span>
-      <span className={`relative h-7 w-12 shrink-0 rounded-full transition ${checked ? 'bg-crema' : 'bg-husk'}`}>
-        <span className={`absolute top-1 h-5 w-5 rounded-full bg-oat shadow transition-all ${checked ? 'left-6' : 'left-1'}`} />
+      <span className={`relative h-7 w-12 shrink-0 rounded-full transition ${checked ? 'bg-accent' : 'bg-line'}`}>
+        <span className={`absolute top-1 h-5 w-5 rounded-full bg-canvas shadow transition-all ${checked ? 'left-6' : 'left-1'}`} />
       </span>
     </button>
   )
@@ -117,7 +117,7 @@ export function Toggle({ checked, onChange, label }: { checked: boolean; onChang
 
 export function Rating({ value, onChange, size = 22 }: { value?: number; onChange?: (v: number | undefined) => void; size?: number }) {
   return (
-    <div className="flex gap-0.5 text-crema">
+    <div className="flex gap-0.5 text-accent">
       {[1, 2, 3, 4, 5].map((n) =>
         onChange ? (
           <button key={n} type="button" aria-label={`${n} stars`} onClick={() => onChange(value === n ? undefined : n)} className="p-0.5">
@@ -145,7 +145,7 @@ export function TagInput({ value, onChange, placeholder }: { value: string[]; on
           key={t}
           type="button"
           onClick={() => onChange(value.filter((v) => v !== t))}
-          className="rounded-full bg-crema/15 px-2.5 py-0.5 text-sm text-crema-deep"
+          className="rounded-full bg-accent/15 px-2.5 py-0.5 text-sm text-accent-fg"
           title="Remove"
         >
           {t} ×
@@ -164,7 +164,7 @@ export function TagInput({ value, onChange, placeholder }: { value: string[]; on
         }}
         onBlur={commit}
         placeholder={value.length ? '' : placeholder}
-        className="min-w-24 flex-1 bg-transparent py-0.5 outline-none placeholder:text-roast/60"
+        className="min-w-24 flex-1 bg-transparent py-0.5 outline-none placeholder:text-muted/60"
       />
     </div>
   )
@@ -183,7 +183,7 @@ export function BagPhoto({ blob, className = '', iconSize = 36 }: { blob?: Blob;
 
   if (blob) return <img ref={img} alt="Coffee bag" className={`object-cover ${className}`} />
   return (
-    <div className={`grid place-items-center bg-[radial-gradient(circle_at_30%_20%,color-mix(in_oklab,var(--crema)_18%,var(--husk)),var(--husk)_70%)] text-roast/50 ${className}`}>
+    <div className={`grid place-items-center bg-[radial-gradient(circle_at_30%_20%,color-mix(in_oklab,var(--accent)_14%,var(--tint)),var(--tint)_70%)] text-muted/50 ${className}`}>
       <Bean width={iconSize} height={iconSize} />
     </div>
   )
@@ -199,7 +199,7 @@ export function PhotoViewer({ blob, onClose }: { blob: Blob; onClose: () => void
 
   return (
     <div role="dialog" aria-label="Bag photo" onClick={onClose} className="fixed inset-0 z-50 grid place-items-center bg-black/85 p-4 backdrop-blur-sm">
-      <BagPhoto blob={blob} className="max-h-full max-w-full rounded-2xl !object-contain" />
+      <BagPhoto blob={blob} className="max-h-full max-w-full rounded-[20px] !object-contain" />
       <button type="button" className="absolute top-[max(env(safe-area-inset-top),1rem)] right-4 rounded-full bg-white/15 p-2 text-white" aria-label="Close">
         <Close />
       </button>

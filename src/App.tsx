@@ -17,7 +17,7 @@ export default function App() {
         <Route path="/coffee/:id/brew/:brewId" component={BrewForm} />
         <Route path="/coffee/:id" component={CoffeeDetail} />
         <Route>
-          <p className="py-20 text-center text-roast">Nothing brewing here.</p>
+          <p className="py-20 text-center text-muted">Nothing brewing here.</p>
         </Route>
       </Switch>
     </div>

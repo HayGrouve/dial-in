@@ -52,15 +52,15 @@ export function OpusDial({ value, fallback, onChange }: { value: string; fallbac
   const step = (d: number) => scrollTo(size + d)
 
   return (
-    <div className="space-y-3 rounded-xl border border-husk bg-foam/60 p-3">
+    <div className="space-y-3 rounded-[20px] border border-line bg-canvas/60 p-3">
       <div className="grid grid-cols-2 gap-2 text-center">
         <div>
           <div className="label !mb-0.5">Outer ring</div>
-          <div className="num font-display text-3xl font-semibold">{pos ? fmtOuter(pos.outer) : '—'}</div>
+          <div className="num font-mono text-3xl font-semibold">{pos ? fmtOuter(pos.outer) : '—'}</div>
         </div>
         <div>
           <div className="label !mb-0.5">Inner ring</div>
-          <div className={`num font-display text-3xl font-semibold ${pos && pos.inner !== home ? 'text-crema-deep' : ''}`}>{pos ? fmtInner(pos.inner) : '—'}</div>
+          <div className={`num font-mono text-3xl font-semibold ${pos && pos.inner !== home ? 'text-accent-fg' : ''}`}>{pos ? fmtInner(pos.inner) : '—'}</div>
         </div>
       </div>
 
@@ -88,24 +88,24 @@ export function OpusDial({ value, fallback, onChange }: { value: string; fallbac
             <div key={i} className="flex shrink-0 snap-center flex-col items-center" style={{ width: TICK }}>
               <div
                 className={`w-0.5 rounded-full ${
-                  i % 12 === 0 ? 'h-9 bg-espresso' : i % 3 === 0 ? 'h-6 bg-roast' : 'h-3 bg-crema'
+                  i % 12 === 0 ? 'h-9 bg-ink' : i % 3 === 0 ? 'h-6 bg-muted' : 'h-3 bg-accent'
                 }`}
               />
-              <span className="num mt-1 h-4 text-xs text-roast">{i % 12 === 0 ? i / 12 : ''}</span>
+              <span className="num mt-1 h-4 text-xs text-muted">{i % 12 === 0 ? i / 12 : ''}</span>
             </div>
           ))}
         </div>
-        <div className="pointer-events-none absolute top-1 left-1/2 h-11 w-1 -translate-x-1/2 rounded-full bg-crema-deep" />
-        <div className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-foam" />
-        <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-foam" />
+        <div className="pointer-events-none absolute top-1 left-1/2 h-11 w-1 -translate-x-1/2 rounded-full bg-accent-fg" />
+        <div className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-canvas" />
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-canvas" />
       </div>
 
       <div className="flex items-center gap-2">
         <button type="button" className="btn-ghost !px-4" onClick={() => step(-1)} disabled={size <= OPUS_MIN}>
           − Finer
         </button>
-        <div className="num flex-1 text-center text-sm leading-tight text-roast">
-          Size <span className="font-semibold text-espresso">{fmtSize(size)}</span>
+        <div className="num flex-1 text-center text-sm leading-tight text-muted">
+          Size <span className="font-semibold text-ink">{fmtSize(size)}</span>
           <div className="text-xs">≈ {opusMicrons(size)} µm</div>
         </div>
         <button type="button" className="btn-ghost !px-4" onClick={() => step(1)} disabled={size >= OPUS_MAX}>
@@ -114,7 +114,7 @@ export function OpusDial({ value, fallback, onChange }: { value: string; fallbac
       </div>
 
       {pos && pos.inner !== home ? (
-        <div className="flex items-center gap-3 rounded-lg bg-crema/10 p-2.5 text-sm">
+        <div className="flex items-center gap-3 rounded-lg bg-accent/10 p-2.5 text-sm">
           <p className="flex-1">
             Move the inner ring from <b className="num">{fmtInner(home)}</b> to <b className="num">{fmtInner(pos.inner)}</b> — it sits under the load bin.
           </p>
@@ -130,7 +130,7 @@ export function OpusDial({ value, fallback, onChange }: { value: string; fallbac
           </button>
         </div>
       ) : (
-        <p className="text-xs text-roast">Short amber ticks are the in-between sizes the inner ring unlocks.</p>
+        <p className="text-xs text-muted">Short amber ticks are the in-between sizes the inner ring unlocks.</p>
       )}
     </div>
   )

@@ -86,21 +86,21 @@ export function BagScanner({
         ))}
       </div>
 
-      <div className="min-h-5 text-center text-sm text-roast">
+      <div className="min-h-5 text-center text-sm text-muted">
         {!hasKey ? (
           count > 0 && (
             <>
-              <Link href="/settings" className="font-semibold text-crema-deep underline">Add an API key</Link> to fill in the details from these photos.
+              <Link href="/settings" className="font-semibold text-accent-fg underline">Add an API key</Link> to fill in the details from these photos.
             </>
           )
         ) : status.kind === 'reading' ? (
-          <span className="animate-pulse font-medium text-crema-deep">Reading the label…</span>
+          <span className="animate-pulse font-medium text-accent-fg">Reading the label…</span>
         ) : status.kind === 'done' ? (
           status.found ? `Found ${status.found} details on the label. Give them a quick check.` : 'Nothing readable on the label. Try a sharper photo.'
         ) : status.kind === 'error' ? (
           <>
             <span className="text-red-700 dark:text-red-400">{status.message}</span>{' '}
-            <button type="button" className="font-semibold text-crema-deep underline" onClick={() => void scan(photosFor(sources))}>Retry</button>
+            <button type="button" className="font-semibold text-accent-fg underline" onClick={() => void scan(photosFor(sources))}>Retry</button>
           </>
         ) : count === 0 ? (
           'Snap the front and back. The details fill themselves in.'
@@ -108,7 +108,7 @@ export function BagScanner({
           <>
             {back ? 'Now the front, ' : 'Now the back, '}
             or{' '}
-            <button type="button" className="font-semibold text-crema-deep underline" onClick={() => void scan(photosFor(sources))}>read this one</button>
+            <button type="button" className="font-semibold text-accent-fg underline" onClick={() => void scan(photosFor(sources))}>read this one</button>
           </>
         )}
       </div>
@@ -135,31 +135,31 @@ function Slot({ side, photo, busy, onFile, onRemove }: { side: Side; photo?: Blo
     />
   )
 
-  const pill = 'rounded-full bg-espresso/75 px-3 py-1.5 text-xs font-semibold text-foam backdrop-blur hover:bg-espresso'
+  const pill = 'rounded-full bg-ink/75 px-3 py-1.5 text-xs font-semibold text-canvas backdrop-blur hover:bg-ink'
 
   return (
     <div>
       {photo ? (
         <div className="relative">
-          <BagPhoto blob={photo} className="aspect-[4/5] w-full rounded-2xl border border-husk" />
-          <span className="absolute top-2 left-2 rounded-full bg-espresso/75 px-2.5 py-1 text-xs font-semibold text-foam backdrop-blur">{label}</span>
+          <BagPhoto blob={photo} className="aspect-[4/5] w-full rounded-[20px] border border-line" />
+          <span className="absolute top-2 left-2 rounded-full bg-ink/75 px-2.5 py-1 text-xs font-semibold text-canvas backdrop-blur">{label}</span>
           <div className="absolute inset-x-2 bottom-2 flex justify-center gap-1.5">
             <button type="button" className={pill} onClick={() => cameraRef.current?.click()}>Retake</button>
             <button type="button" className={pill} onClick={onRemove} aria-label={`Remove ${side} photo`}><Close width={14} height={14} /></button>
           </div>
         </div>
       ) : (
-        <div className="flex aspect-[4/5] w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-husk p-3 text-center">
+        <div className="flex aspect-[4/5] w-full flex-col items-center justify-center gap-2 rounded-[20px] border border-dashed border-line p-3 text-center">
           <button
             type="button"
             onClick={() => cameraRef.current?.click()}
-            className="grid h-14 w-14 place-items-center rounded-full bg-crema/15 text-crema-deep hover:bg-crema/25"
+            className="grid h-14 w-14 place-items-center rounded-full bg-accent/15 text-accent-fg hover:bg-accent/25"
             aria-label={`Photograph the ${side}`}
           >
             <Camera width={26} height={26} />
           </button>
           <div className="text-sm font-semibold">{busy ? 'Processing…' : `${label} of the bag`}</div>
-          <button type="button" className="text-xs font-medium text-roast underline" onClick={() => libraryRef.current?.click()}>
+          <button type="button" className="text-xs font-medium text-muted underline" onClick={() => libraryRef.current?.click()}>
             From library
           </button>
         </div>

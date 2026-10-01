@@ -136,7 +136,7 @@ export default function CoffeeForm() {
         </Section>
       </div>
 
-      <div className="sticky bottom-0 -mx-4 mt-6 bg-gradient-to-t from-foam from-60% px-4 pt-6 pb-[max(env(safe-area-inset-bottom),1rem)]">
+      <div className="sticky bottom-0 -mx-4 mt-6 bg-gradient-to-t from-canvas from-60% px-4 pt-6 pb-[max(env(safe-area-inset-bottom),1rem)]">
         <button type="submit" className="btn-primary w-full !py-3.5">
           {id ? 'Save changes' : 'Add coffee'}
         </button>

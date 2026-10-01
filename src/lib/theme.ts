@@ -17,7 +17,7 @@ function apply(pref: ThemePref) {
   document.head.appendChild(freeze)
   root.classList.toggle('dark', dark)
   root.style.colorScheme = dark ? 'dark' : 'light'
-  document.querySelector('meta[name=theme-color]')?.setAttribute('content', dark ? '#17100b' : '#f7f1e8')
+  document.querySelector('meta[name=theme-color]')?.setAttribute('content', dark ? '#0e1a15' : '#edf0ea')
   void getComputedStyle(root).color // force a style flush before re-enabling transitions
   freeze.remove()
 }

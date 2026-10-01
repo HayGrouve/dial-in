@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link, useLocation, useParams } from 'wouter'
+import { Link, useLocation, useParams, useSearch } from 'wouter'
 import { MethodPicker } from '../components/MethodPicker'
 import { OpusDial } from '../components/OpusDial'
 import { Field, Header, Section, Segmented, Toggle } from '../components/ui'
@@ -34,6 +34,9 @@ async function prefill(coffeeId: string, method: BrewMethod): Promise<{ draft: D
 export default function BrewForm() {
   const { id: coffeeId, brewId } = useParams<{ id: string; brewId?: string }>()
   const [, navigate] = useLocation()
+  // "Log an espresso" on the coffee page opens the form on that method.
+  const asked = new URLSearchParams(useSearch()).get('method')
+  const startMethod = asked && asked in METHODS ? (asked as BrewMethod) : undefined
   const coffee = useLiveQuery(() => db.coffees.get(coffeeId), [coffeeId])
   const grinder = getGrinder()
   const opusDial = getOpusDial()
@@ -48,11 +51,11 @@ export default function BrewForm() {
     void (async () => {
       const last = await db.brews.where('coffeeId').equals(coffeeId).reverse().sortBy('createdAt')
       const lastAny = last[0] ?? (await db.brews.orderBy('createdAt').last())
-      const p = await prefill(coffeeId, lastAny?.method ?? 'espresso')
+      const p = await prefill(coffeeId, startMethod ?? lastAny?.method ?? 'espresso')
       setDraft(p.draft)
       setGrindHint(p.hint)
     })()
-  }, [coffeeId, brewId])
+  }, [coffeeId, brewId, startMethod])
 
   if (!draft || !coffee) return null
 
@@ -105,7 +108,7 @@ export default function BrewForm() {
         title={
           <div className="min-w-0">
             <div className="truncate">{brewId ? 'Edit brew' : 'Log a brew'}</div>
-            <div className="truncate font-sans text-xs font-normal text-roast">{coffee.name} · {coffee.roaster}</div>
+            <div className="truncate font-sans text-xs font-normal text-muted">{coffee.name}, {coffee.roaster}</div>
           </div>
         }
       />
@@ -120,14 +123,14 @@ export default function BrewForm() {
               <>On {brewId && draft.grinder ? draft.grinder : grinder}{grindHint && ` · last ${m.label.toLowerCase()} on another coffee: ${grindHint}`}</>
             ) : (
               <>
-                <Link href="/settings" className="font-medium text-crema-deep underline underline-offset-2">Set your grinder</Link> once in Settings
+                <Link href="/settings" className="font-medium text-accent-fg underline underline-offset-2">Set your grinder</Link> once in Settings
               </>
             )
           }
         >
           <div>
             <input
-              className="input num h-16 !py-0 text-center font-display !text-4xl font-semibold"
+              className="input num h-20 !py-0 text-center font-mono !text-4xl font-semibold text-accent-fg"
               aria-label="Grind setting"
               required
               autoFocus={!brewId}
@@ -135,7 +138,7 @@ export default function BrewForm() {
               value={draft.grindSetting}
               onChange={(e) => set('grindSetting', e.target.value)}
             />
-            <p className="mt-1.5 text-xs text-roast">Any notation — 14, 2.5, 1.5.2, 22 clicks</p>
+            <p className="mt-1.5 text-xs text-muted">Any notation — 14, 2.5, 1.5.2, 22 clicks</p>
           </div>
           {opusDial && <OpusDial value={draft.grindSetting} fallback={grindHint} onChange={(v) => set('grindSetting', v)} />}
         </Section>
@@ -152,8 +155,8 @@ export default function BrewForm() {
               <input {...num('timeSec')} placeholder={m.isEspresso ? '28' : '180'} />
             </Field>
           </div>
-          <p className="num text-sm text-roast">
-            Ratio <span className="font-semibold text-espresso">{r ?? '—'}</span>
+          <p className="num text-sm text-muted">
+            Ratio <span className="font-semibold text-ink">{r ?? '—'}</span>
           </p>
         </Section>
 
@@ -182,35 +185,35 @@ export default function BrewForm() {
               value={draft.taste}
               onChange={(t) => set('taste', draft.taste === t ? undefined : t)}
               options={[
-                { value: 'sour', label: TASTES.sour.label, className: 'border-citrus bg-citrus text-oat' },
-                { value: 'balanced', label: TASTES.balanced.label, className: 'border-crema bg-crema text-oat' },
-                { value: 'bitter', label: TASTES.bitter.label, className: 'border-char bg-char text-oat' },
+                { value: 'sour', label: TASTES.sour.label, className: 'border-sour bg-sour text-on-accent' },
+                { value: 'balanced', label: TASTES.balanced.label, className: 'border-accent bg-accent text-on-accent' },
+                { value: 'bitter', label: TASTES.bitter.label, className: 'border-bitter bg-bitter text-on-accent' },
               ]}
             />
-            {draft.taste && <p className="mt-2 text-sm text-roast">{TASTES[draft.taste].hint}</p>}
+            {draft.taste && <p className="mt-2 text-sm text-muted">{TASTES[draft.taste].hint}</p>}
           </div>
           <Field label="Notes">
             <textarea className="input min-h-16" placeholder="Channeling? Milk drink? Next time…" value={draft.notes ?? ''} onChange={(e) => set('notes', e.target.value || undefined)} />
           </Field>
         </Section>
 
-        <div className={`rounded-2xl border p-4 transition ${draft.dialedIn ? 'border-crema bg-crema/10' : 'border-husk bg-oat'}`}>
+        <div className={`rounded-[28px] border p-4 transition ${draft.dialedIn ? 'border-accent bg-accent/10' : 'border-transparent bg-surface'}`}>
           <Toggle
             checked={draft.dialedIn}
             onChange={(v) => set('dialedIn', v)}
             label={
               <span>
                 <span className="block font-semibold">This is the one</span>
-                <span className="text-sm text-roast">Pin as your {m.label.toLowerCase()} setting</span>
+                <span className="text-sm text-muted">Pin as your {m.label.toLowerCase()} setting</span>
               </span>
             }
           />
         </div>
       </div>
 
-      <div className="sticky bottom-0 -mx-4 mt-6 flex gap-2 bg-gradient-to-t from-foam from-60% px-4 pt-6 pb-[max(env(safe-area-inset-bottom),1rem)]">
+      <div className="sticky bottom-0 -mx-4 mt-6 flex gap-2 bg-gradient-to-t from-canvas from-60% px-4 pt-6 pb-[max(env(safe-area-inset-bottom),1rem)]">
         {brewId && (
-          <button type="button" className="btn-ghost !text-char" onClick={remove}>
+          <button type="button" className="btn-ghost !text-bitter" onClick={remove}>
             Delete
           </button>
         )}
