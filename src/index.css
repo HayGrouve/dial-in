@@ -1,52 +1,58 @@
 @import 'tailwindcss';
-@import '@fontsource-variable/fraunces';
-@import '@fontsource-variable/inter';
+@import '@fontsource-variable/outfit';
+@import '@fontsource-variable/jetbrains-mono';
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Palette drawn from the cup: milk foam, oat, crema, espresso. */
+/* Night Shift: forest green, bone and amber. Text roles, not colours, so both themes share names. */
 :root {
-  --foam: #f7f1e8;
-  --oat: #fffbf5;
-  --husk: #e6dccb;
-  --espresso: #2b1a10;
-  --roast: #7a6553;
-  --crema: #c47f3e;
-  --crema-deep: #9a5b24;
-  --citrus: #c8961c;
-  --char: #8c3b2a;
+  --canvas: #edf0ea;
+  --surface: #f7f8f4;
+  --tint: #e1e7df;
+  --ink: #11241b;
+  --muted: #4f6359;
+  --line: #d3dbd3;
+  --accent: #d99a2b;
+  --on-accent: #11241b;
+  --accent-fg: #8a5a08;
+  --sour: #c2bd4f;
+  --bitter: #d9785a;
 }
 
 /* Toggled by src/lib/theme.ts (system, light or dark). */
 :root.dark {
-  --foam: #17100b;
-  --oat: #231812;
-  --husk: #3a2a1f;
-  --espresso: #f3e9dc;
-  --roast: #b19d88;
-  --crema: #d99a5b;
-  --crema-deep: #eab67f;
-  --citrus: #e0b84e;
-  --char: #d27a64;
+  --canvas: #0e1a15;
+  --surface: #15251e;
+  --tint: #1c3027;
+  --ink: #e9ede6;
+  --muted: #9db0a5;
+  --line: #24392f;
+  --accent: #e8a93b;
+  --on-accent: #0e1a15;
+  --accent-fg: #e8a93b;
+  --sour: #cfcb6b;
+  --bitter: #e08a6c;
 }
 
 @theme inline {
-  --color-foam: var(--foam);
-  --color-oat: var(--oat);
-  --color-husk: var(--husk);
-  --color-espresso: var(--espresso);
-  --color-roast: var(--roast);
-  --color-crema: var(--crema);
-  --color-crema-deep: var(--crema-deep);
-  --color-citrus: var(--citrus);
-  --color-char: var(--char);
-  --font-display: 'Fraunces Variable', ui-serif, Georgia, serif;
-  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-tint: var(--tint);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-sour: var(--sour);
+  --color-bitter: var(--bitter);
+  --font-sans: 'Outfit Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
 }
 
 html {
-  background: var(--foam);
-  color: var(--espresso);
+  background: var(--canvas);
+  color: var(--ink);
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -73,18 +79,18 @@ body {
 
   /* Keyboard focus; pointer taps stay ring-free. Inputs draw their own focus ring. */
   :where(a, button, [role='radio']):focus-visible {
-    outline: 2px solid var(--crema);
+    outline: 2px solid var(--accent);
     outline-offset: 2px;
   }
 }
 
-/* Shared form controls */
+/* Shared form controls. Radius rule: cards 28px, photos 20px, inputs 16px, buttons full pill. */
 @utility input {
-  @apply w-full rounded-xl border border-husk bg-oat px-3.5 py-2.5 text-[15px] text-espresso outline-none transition placeholder:text-roast/60 focus:border-crema focus:ring-2 focus:ring-crema/25;
+  @apply w-full rounded-2xl border border-line bg-canvas px-4 py-3 text-[15px] text-ink outline-none transition placeholder:text-muted/70 focus:border-accent focus:ring-2 focus:ring-accent/25;
 }
 
 @utility label {
-  @apply mb-1.5 block text-xs font-medium tracking-wide text-roast uppercase;
+  @apply mb-1.5 block text-sm font-medium text-muted;
 }
 
 @utility btn {
@@ -92,13 +98,27 @@ body {
 }
 
 @utility btn-primary {
-  @apply btn bg-espresso text-foam hover:opacity-90;
+  @apply btn bg-accent text-on-accent hover:brightness-105;
 }
 
 @utility btn-ghost {
-  @apply btn border border-husk bg-oat text-espresso hover:border-crema;
+  @apply btn border border-line text-ink hover:bg-tint;
 }
 
 @utility card {
-  @apply rounded-2xl border border-husk bg-oat;
+  @apply rounded-[28px] bg-surface;
+}
+
+/* Entry motion for key blocks; off for reduced-motion users. */
+@media (prefers-reduced-motion: no-preference) {
+  .rise {
+    animation: rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: calc(var(--i, 0) * 45ms);
+  }
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
 }

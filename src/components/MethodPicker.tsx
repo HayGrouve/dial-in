@@ -8,8 +8,8 @@ const PRIMARY: BrewMethod[] = ['espresso', 'pourover']
 const SECONDARY = METHOD_ORDER.filter((m) => !PRIMARY.includes(m))
 
 const chip = (active: boolean) =>
-  `flex items-center gap-1 rounded-full border px-3.5 py-1.5 text-sm font-medium transition ${
-    active ? 'border-espresso bg-espresso text-foam' : 'border-husk bg-oat text-roast hover:border-crema'
+  `flex items-center gap-1 rounded-full border px-4 py-2 text-sm font-medium transition ${
+    active ? 'border-ink bg-ink text-canvas' : 'border-line text-muted hover:bg-tint hover:text-ink'
   }`
 
 export function MethodPicker({ value, onChange }: { value: BrewMethod; onChange: (m: BrewMethod) => void }) {
@@ -50,7 +50,7 @@ export function MethodPicker({ value, onChange }: { value: BrewMethod; onChange:
         </button>
 
         {open && (
-          <div role="menu" className="card absolute top-full right-0 z-30 mt-1.5 w-44 overflow-hidden py-1 shadow-lg shadow-espresso/15">
+          <div role="menu" className="absolute top-full right-0 z-30 mt-1.5 w-44 overflow-hidden rounded-[20px] border border-line bg-surface py-1 shadow-lg shadow-black/20">
             {SECONDARY.map((k) => (
               <button
                 key={k}
@@ -61,10 +61,10 @@ export function MethodPicker({ value, onChange }: { value: BrewMethod; onChange:
                   onChange(k)
                   setOpen(false)
                 }}
-                className="flex w-full items-center justify-between px-4 py-2.5 text-left text-sm hover:bg-husk/60"
+                className="flex w-full items-center justify-between px-4 py-2.5 text-left text-sm hover:bg-tint"
               >
                 {METHODS[k].label}
-                {value === k && <Check width={16} height={16} className="text-crema-deep" />}
+                {value === k && <Check width={16} height={16} className="text-accent-fg" />}
               </button>
             ))}
           </div>
