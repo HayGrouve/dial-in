@@ -2,6 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useRef, useState } from 'react'
 import { Moon, Monitor, Sun } from '../components/icons'
 import { Field, Header, Section, Toggle } from '../components/ui'
+import { arrowKeys } from '../lib/a11y'
 import { exportBackup, importBackup } from '../lib/backup'
 import { db } from '../lib/db'
 import { getApiKey, getGrinder, getOpusDial, setApiKey, setGrinder, setOpusDial } from '../lib/prefs'
@@ -21,6 +22,8 @@ const THEMES: { value: ThemePref; label: string; icon: typeof Sun }[] = [
   { value: 'dark', label: 'Dark', icon: Moon },
 ]
 
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
+
 export default function Settings() {
   const counts = useLiveQuery(async () => ({ coffees: await db.coffees.count(), brews: await db.brews.count() }))
   const fileRef = useRef<HTMLInputElement>(null)
@@ -35,7 +38,7 @@ export default function Settings() {
     try {
       const r = await importBackup(file)
       setGrinderDraft(getGrinder())
-      setMessage(`Imported ${r.coffees} coffees and ${r.brews} brews.`)
+      setMessage(`Imported ${plural(r.coffees, 'coffee')} and ${plural(r.brews, 'brew')}.`)
     } catch (e) {
       setMessage(e instanceof Error ? e.message : 'Import failed.')
     }
@@ -47,7 +50,7 @@ export default function Settings() {
 
       <div className="space-y-4">
         <Section title="Appearance">
-          <div role="radiogroup" aria-label="Theme" className="grid grid-cols-3 gap-2">
+          <div role="radiogroup" aria-label="Theme" onKeyDown={arrowKeys} className="grid grid-cols-3 gap-2">
             {THEMES.map(({ value, label, icon: Icon }) => {
               const active = theme === value
               return (
@@ -56,6 +59,7 @@ export default function Settings() {
                   type="button"
                   role="radio"
                   aria-checked={active}
+                  tabIndex={active ? 0 : -1}
                   onClick={() => {
                     setThemePref(value)
                     setTheme(value)
@@ -76,7 +80,9 @@ export default function Settings() {
           <Field label="Grinder">
             <input
               className="input"
-              placeholder="e.g. Niche Zero, Comandante C40"
+              name="grinder"
+              autoComplete="off"
+              placeholder="e.g. Niche Zero, Comandante C40…"
               value={grinder}
               onChange={(e) => {
                 setGrinderDraft(e.target.value)
@@ -104,6 +110,7 @@ export default function Settings() {
             <input
               className="input"
               type="password"
+              name="geminiApiKey"
               autoComplete="off"
               spellCheck={false}
               placeholder="AIza…"
@@ -123,7 +130,7 @@ export default function Settings() {
           </p>
         </Section>
 
-        <Section title="Your data" hint={`${counts?.coffees ?? 0} coffees · ${counts?.brews ?? 0} brews`}>
+        <Section title="Your data" hint={counts && `${plural(counts.coffees, 'coffee')} · ${plural(counts.brews, 'brew')}`}>
           <p className="text-sm text-muted">Everything lives only on this device. Export a backup now and then, or to move to a new phone.</p>
           <div className="grid grid-cols-2 gap-2">
             <button className="btn-primary" onClick={() => void exportBackup()}>
@@ -134,7 +141,9 @@ export default function Settings() {
             </button>
           </div>
           <input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={(e) => void onImport(e.target.files?.[0])} />
-          {message && <p className="text-sm font-medium text-accent-fg">{message}</p>}
+          <p className="text-sm font-medium text-accent-fg empty:sr-only" role="status">
+            {message}
+          </p>
         </Section>
 
         <Section title="Dial-in cheat sheet" summary="Five rules for dialing in a new bag" collapsible defaultOpen={false}>

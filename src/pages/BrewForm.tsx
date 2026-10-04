@@ -4,6 +4,7 @@ import { Link, useLocation, useParams, useSearch } from 'wouter'
 import { MethodPicker } from '../components/MethodPicker'
 import { OpusDial } from '../components/OpusDial'
 import { Field, Header, Section, Segmented, Toggle } from '../components/ui'
+import { useLeaveGuard } from '../lib/a11y'
 import { db, newId, setDialedIn, type Brew, type BrewMethod, type Taste } from '../lib/db'
 import { dotted, METHODS, ratio, TASTES } from '../lib/methods'
 import { getGrinder, getOpusDial } from '../lib/prefs'
@@ -42,6 +43,9 @@ export default function BrewForm() {
   const opusDial = getOpusDial()
   const [draft, setDraft] = useState<Draft>()
   const [grindHint, setGrindHint] = useState<string>()
+  const [dirty, setDirty] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const guard = useLeaveGuard(dirty && !saving)
 
   useEffect(() => {
     if (brewId) {
@@ -60,8 +64,13 @@ export default function BrewForm() {
   if (!draft || !coffee) return null
 
   const m = METHODS[draft.method]
-  const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((d) => d && { ...d, [key]: value })
+  const set = <K extends keyof Draft>(key: K, value: Draft[K]) => {
+    setDirty(true)
+    setDraft((d) => d && { ...d, [key]: value })
+  }
   const num = (key: 'dose' | 'yield' | 'timeSec' | 'preinfusionSec' | 'temperature' | 'bloomSec') => ({
+    name: key,
+    autoComplete: 'off',
     value: draft[key] ?? '',
     onChange: (e: { target: { value: string } }) => set(key, e.target.value === '' ? undefined : Number(e.target.value)),
     type: 'number',
@@ -72,6 +81,7 @@ export default function BrewForm() {
 
   const changeMethod = async (method: BrewMethod) => {
     if (brewId) return set('method', method)
+    setDirty(true)
     const p = await prefill(coffeeId, method)
     setDraft({ ...p.draft, taste: draft.taste, notes: draft.notes })
     setGrindHint(p.hint)
@@ -79,6 +89,7 @@ export default function BrewForm() {
 
   const save = async (e: FormEvent) => {
     e.preventDefault()
+    setSaving(true)
     const brew: Brew = brewId
       ? { ...(draft as Brew) }
       : { ...draft, grinder: grinder || undefined, id: newId(), coffeeId, createdAt: Date.now() }
@@ -105,11 +116,12 @@ export default function BrewForm() {
     <form onSubmit={save} className="pb-8">
       <Header
         back={`/coffee/${coffeeId}`}
+        onBack={guard}
         title={
-          <div className="min-w-0">
-            <div className="truncate">{brewId ? 'Edit brew' : 'Log a brew'}</div>
-            <div className="truncate font-sans text-xs font-normal text-muted">{coffee.name}, {coffee.roaster}</div>
-          </div>
+          <span className="block min-w-0">
+            <span className="block truncate">{brewId ? 'Edit brew' : 'Log a brew'}</span>
+            <span className="block truncate font-sans text-xs font-normal text-muted">{coffee.name}, {coffee.roaster}</span>
+          </span>
         }
       />
 
@@ -123,7 +135,7 @@ export default function BrewForm() {
               <>On {brewId && draft.grinder ? draft.grinder : grinder}{grindHint && ` · last ${m.label.toLowerCase()} on another coffee: ${grindHint}`}</>
             ) : (
               <>
-                <Link href="/settings" className="font-medium text-accent-fg underline underline-offset-2">Set your grinder</Link> once in Settings
+                <Link href="/settings" onClick={guard} className="font-medium text-accent-fg underline underline-offset-2">Set your grinder</Link> once in Settings
               </>
             )
           }
@@ -132,8 +144,11 @@ export default function BrewForm() {
             <input
               className="input num h-20 !py-0 text-center font-mono !text-4xl font-semibold text-accent-fg"
               aria-label="Grind setting"
+              name="grindSetting"
+              autoComplete="off"
               required
-              autoFocus={!brewId}
+              // Straight to the one field that matters; skipped when the Opus wheel is the input.
+              autoFocus={!brewId && !opusDial}
               placeholder={grindHint ?? '15'}
               value={draft.grindSetting}
               onChange={(e) => set('grindSetting', e.target.value)}
@@ -145,13 +160,13 @@ export default function BrewForm() {
 
         <Section title="Recipe" hint={m.isEspresso ? 'Start around 1:2 in 25–30s' : `Start around 1:${m.defaultRatio}`}>
           <div className="grid grid-cols-3 gap-2">
-            <Field label="Dose g">
+            <Field label="Dose (g)">
               <input {...num('dose')} placeholder="18" />
             </Field>
-            <Field label={m.isEspresso ? 'Out g' : 'Water g'}>
+            <Field label={m.isEspresso ? 'Out (g)' : 'Water (g)'}>
               <input {...num('yield')} placeholder={String(18 * m.defaultRatio)} />
             </Field>
-            <Field label="Time s">
+            <Field label="Time (s)">
               <input {...num('timeSec')} placeholder={m.isEspresso ? '28' : '180'} />
             </Field>
           </div>
@@ -193,7 +208,7 @@ export default function BrewForm() {
             {draft.taste && <p className="mt-2 text-sm text-muted">{TASTES[draft.taste].hint}</p>}
           </div>
           <Field label="Notes">
-            <textarea className="input min-h-16" placeholder="Channeling? Milk drink? Next time…" value={draft.notes ?? ''} onChange={(e) => set('notes', e.target.value || undefined)} />
+            <textarea className="input min-h-16" name="notes" placeholder="Channeling? Milk drink? Next time…" value={draft.notes ?? ''} onChange={(e) => set('notes', e.target.value || undefined)} />
           </Field>
         </Section>
 
@@ -217,7 +232,7 @@ export default function BrewForm() {
             Delete
           </button>
         )}
-        <button type="submit" className="btn-primary flex-1 !py-3.5">
+        <button type="submit" disabled={saving} className="btn-primary flex-1 !py-3.5">
           {brewId ? 'Save' : 'Save brew'}
         </button>
       </div>

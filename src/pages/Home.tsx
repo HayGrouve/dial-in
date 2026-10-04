@@ -1,6 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { useState } from 'react'
-import { Link } from 'wouter'
+import { Link, useLocation, useSearch } from 'wouter'
 import { BagPhoto } from '../components/ui'
 import { Bean, Chevron, Gear, Plus, Search } from '../components/icons'
 import { db, type Brew, type Coffee } from '../lib/db'
@@ -9,8 +8,20 @@ import { formatTime, METHODS, METHOD_SHORT, nextMove, relativeDay, settingsFor }
 export default function Home() {
   const coffees = useLiveQuery(() => db.coffees.orderBy('updatedAt').reverse().toArray())
   const brews = useLiveQuery(() => db.brews.orderBy('createdAt').reverse().toArray())
-  const [query, setQuery] = useState('')
-  const [showFinished, setShowFinished] = useState(false)
+  // Search and the Finished list live in the URL, so coming back from a coffee restores them.
+  const [, navigate] = useLocation()
+  const params = new URLSearchParams(useSearch())
+  const query = params.get('q') ?? ''
+  const showFinished = params.has('finished')
+  const setParam = (key: string, value: string | undefined) => {
+    const next = new URLSearchParams(params)
+    if (value) next.set(key, value)
+    else next.delete(key)
+    const search = next.toString()
+    navigate(search ? `/?${search}` : '/', { replace: true })
+  }
+  const setQuery = (q: string) => setParam('q', q)
+  const setShowFinished = (show: boolean) => setParam('finished', show ? '1' : undefined)
 
   if (!coffees || !brews) return null
 
@@ -36,7 +47,9 @@ export default function Home() {
   return (
     <>
       <header className="flex items-center justify-between pt-[max(env(safe-area-inset-top),1rem)] pb-4">
-        <span className="text-lg font-semibold tracking-tight">Dial In</span>
+        <h1 className="text-lg font-semibold tracking-tight" translate="no">
+          Dial In
+        </h1>
         <Link href="/settings" className="-mr-2 rounded-full p-2.5 text-muted hover:bg-surface hover:text-ink" aria-label="Settings">
           <Gear />
         </Link>
@@ -52,6 +65,8 @@ export default function Home() {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search roaster, origin, notes…"
             aria-label="Search coffees"
+            name="q"
+            autoComplete="off"
             className="input !rounded-full !bg-surface !pl-11"
             type="search"
           />
@@ -67,7 +82,7 @@ export default function Home() {
               {results.map((c) => (
                 <li key={c.id}>
                   <Link href={`/coffee/${c.id}`} className="flex items-center gap-3 rounded-[20px] p-2 hover:bg-surface">
-                    <BagPhoto blob={c.photo} className="aspect-[4/5] w-12 shrink-0 rounded-xl" iconSize={18} />
+                    <BagPhoto blob={c.photo} alt="" className="aspect-[4/5] w-12 shrink-0 rounded-xl" iconSize={18} />
                     <div className="min-w-0 flex-1">
                       <div className="truncate font-medium">{c.name}</div>
                       <div className="truncate text-sm text-muted">{c.finished ? `${c.roaster}, finished` : c.roaster}</div>
@@ -113,18 +128,20 @@ export default function Home() {
 
           {finished.length > 0 && (
             <section className="mt-10">
-              <button
-                type="button"
-                onClick={() => setShowFinished(!showFinished)}
-                aria-expanded={showFinished}
-                className="flex w-full items-center justify-between rounded-full py-2 text-left"
-              >
-                <span className="text-xl font-semibold tracking-tight">Finished</span>
-                <span className="flex items-center gap-1 text-sm text-muted">
-                  {finished.length} {finished.length === 1 ? 'bag' : 'bags'}
-                  <Chevron width={16} height={16} className={`transition-transform ${showFinished ? 'rotate-180' : ''}`} />
-                </span>
-              </button>
+              <h2 className="text-xl font-semibold tracking-tight">
+                <button
+                  type="button"
+                  onClick={() => setShowFinished(!showFinished)}
+                  aria-expanded={showFinished}
+                  className="group flex w-full items-center justify-between rounded-full py-2 text-left"
+                >
+                  Finished
+                  <span className="flex items-center gap-1 text-sm font-normal tracking-normal text-muted transition group-hover:text-ink">
+                    {finished.length} {finished.length === 1 ? 'bag' : 'bags'}
+                    <Chevron width={16} height={16} className={`transition-transform ${showFinished ? 'rotate-180' : ''}`} />
+                  </span>
+                </button>
+              </h2>
               {showFinished && (
                 <ul className="mt-2 space-y-1">
                   {finished.map((c) => (
@@ -146,7 +163,7 @@ export default function Home() {
       {coffees.length > 0 && (
         <Link
           href="/coffee/new"
-          className="btn fixed right-[max(1rem,calc(50vw-24rem+1rem))] bottom-[max(env(safe-area-inset-bottom),1rem)] z-30 bg-ink !px-5 !py-3.5 text-canvas shadow-[0_12px_32px_-12px_rgb(6_14_11/0.6)]"
+          className="btn fixed right-[max(1rem,calc(50vw-24rem+1rem))] bottom-[max(env(safe-area-inset-bottom),1rem)] z-30 bg-ink !px-5 !py-3.5 text-canvas hover:bg-ink/90 shadow-[0_12px_32px_-12px_rgb(6_14_11/0.6)]"
         >
           <Plus width={18} height={18} /> New coffee
         </Link>
@@ -161,10 +178,10 @@ function UpNext({ coffee, brews, last }: { coffee: Coffee; brews: Brew[]; last: 
   return (
     <section className="rise card p-4">
       <Link href={`/coffee/${coffee.id}`} className="flex gap-4">
-        <BagPhoto blob={coffee.photo} className="aspect-[4/5] w-24 shrink-0 rounded-[20px]" iconSize={28} />
+        <BagPhoto blob={coffee.photo} alt="" className="aspect-[4/5] w-24 shrink-0 rounded-[20px]" iconSize={28} />
         <div className="min-w-0 py-1">
           <p className="text-sm text-muted">Brewed {relativeDay(last.createdAt).toLowerCase()}</p>
-          <h1 className="mt-1 text-2xl leading-tight font-semibold tracking-tight">{coffee.name}</h1>
+          <h2 className="mt-1 text-2xl leading-tight font-semibold tracking-tight break-words">{coffee.name}</h2>
           <p className="mt-1 truncate text-sm text-muted">{coffee.roaster}</p>
         </div>
       </Link>
@@ -172,7 +189,7 @@ function UpNext({ coffee, brews, last }: { coffee: Coffee; brews: Brew[]; last: 
         <div className="min-w-0">
           <div className="text-sm text-muted">{setting.dialedIn ? m.label : `${m.label}, still dialing`}</div>
           <div className={`truncate font-mono leading-none font-semibold tracking-tighter text-accent-fg ${setting.grindSetting.length > 6 ? 'text-4xl' : 'text-[56px]'}`}>
-            {setting.grindSetting || '-'}
+            {setting.grindSetting || '—'}
           </div>
         </div>
         <p className="shrink-0 pb-1 text-right font-mono text-sm leading-relaxed text-muted">
@@ -191,7 +208,7 @@ function UpNext({ coffee, brews, last }: { coffee: Coffee; brews: Brew[]; last: 
 function ShelfCard({ coffee, brews }: { coffee: Coffee; brews: Brew[] }) {
   return (
     <Link href={`/coffee/${coffee.id}`} className="group block">
-      <BagPhoto blob={coffee.photo} className="aspect-[4/5] w-full rounded-[20px] transition group-active:scale-[0.98]" />
+      <BagPhoto blob={coffee.photo} alt="" className="aspect-[4/5] w-full rounded-[20px] transition group-active:scale-[0.98]" />
       <div className="mt-2.5 truncate font-medium">{coffee.name}</div>
       <div className="truncate text-sm text-muted">{coffee.roaster}</div>
       <div className="mt-1">
@@ -244,7 +261,7 @@ function EmptyState() {
       <div className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-full bg-accent/15 text-accent-fg">
         <Bean width={30} height={30} />
       </div>
-      <h1 className="text-2xl font-semibold tracking-tight">Your grind memory starts here</h1>
+      <h2 className="text-2xl font-semibold tracking-tight">Your grind memory starts here</h2>
       <p className="mx-auto mt-2 max-w-sm text-muted">
         Snap the bag, log your shots, and pin the setting that tastes right. Next time you buy it again, the number is waiting.
       </p>

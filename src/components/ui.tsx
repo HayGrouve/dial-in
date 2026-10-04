@@ -1,16 +1,16 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import { Link } from 'wouter'
 import { Back, Bean, Chevron, Close, Star } from './icons'
 
-export function Header({ title, back, right }: { title?: ReactNode; back?: string; right?: ReactNode }) {
+export function Header({ title, back, right, onBack }: { title?: ReactNode; back?: string; right?: ReactNode; onBack?: (e: MouseEvent) => void }) {
   return (
     <header className="sticky top-0 z-20 -mx-4 mb-4 flex items-center gap-2 bg-canvas/85 px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-3 backdrop-blur">
       {back && (
-        <Link href={back} className="-ml-2 rounded-full p-2 text-muted hover:text-ink" aria-label="Back">
+        <Link href={back} onClick={onBack} className="-ml-2 rounded-full p-2 text-muted hover:text-ink" aria-label="Back">
           <Back />
         </Link>
       )}
-      <div className="min-w-0 flex-1 truncate text-lg font-semibold tracking-tight">{title}</div>
+      <h1 className="min-w-0 flex-1 truncate text-lg font-semibold tracking-tight">{title}</h1>
       {right}
     </header>
   )
@@ -91,6 +91,7 @@ export function Segmented<T extends string>({
           <button
             key={o.value}
             type="button"
+            aria-pressed={active}
             onClick={() => onChange(o.value)}
             className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
               active ? (o.className ?? 'border-ink bg-ink text-canvas') : 'border-line text-muted hover:bg-tint hover:text-ink'
@@ -106,21 +107,35 @@ export function Segmented<T extends string>({
 
 export function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: ReactNode }) {
   return (
-    <button type="button" onClick={() => onChange(!checked)} className="flex w-full items-center justify-between gap-3 py-1 text-left">
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className="flex w-full items-center justify-between gap-3 py-1 text-left"
+    >
       <span className="text-[15px]">{label}</span>
       <span className={`relative h-7 w-12 shrink-0 rounded-full transition ${checked ? 'bg-accent' : 'bg-line'}`}>
-        <span className={`absolute top-1 h-5 w-5 rounded-full bg-canvas shadow transition-all ${checked ? 'left-6' : 'left-1'}`} />
+        <span className={`absolute top-1 left-1 h-5 w-5 rounded-full bg-canvas shadow transition-transform ${checked ? 'translate-x-5' : ''}`} />
       </span>
     </button>
   )
 }
 
 export function Rating({ value, onChange, size = 22 }: { value?: number; onChange?: (v: number | undefined) => void; size?: number }) {
+  const read = onChange ? { role: 'group', 'aria-label': 'Rating' } : { role: 'img', 'aria-label': value ? `${value} of 5 stars` : 'Not rated' }
   return (
-    <div className="flex gap-0.5 text-accent">
+    <div className="flex gap-0.5 text-accent" {...read}>
       {[1, 2, 3, 4, 5].map((n) =>
         onChange ? (
-          <button key={n} type="button" aria-label={`${n} stars`} onClick={() => onChange(value === n ? undefined : n)} className="p-0.5">
+          <button
+            key={n}
+            type="button"
+            aria-label={n === 1 ? '1 star' : `${n} stars`}
+            aria-pressed={value === n}
+            onClick={() => onChange(value === n ? undefined : n)}
+            className="rounded-full p-0.5 hover:brightness-110"
+          >
             <Star filled={!!value && n <= value} width={size} height={size} />
           </button>
         ) : (
@@ -131,27 +146,31 @@ export function Rating({ value, onChange, size = 22 }: { value?: number; onChang
   )
 }
 
-export function TagInput({ value, onChange, placeholder }: { value: string[]; onChange: (v: string[]) => void; placeholder?: string }) {
+/** Must not sit inside a <label>: the chips are buttons, and a label would click the first one. */
+export function TagInput({ value, onChange, placeholder, label }: { value: string[]; onChange: (v: string[]) => void; placeholder?: string; label: string }) {
   const [draft, setDraft] = useState('')
   const commit = () => {
     const parts = draft.split(',').map((s) => s.trim()).filter(Boolean)
-    if (parts.length) onChange([...value, ...parts.filter((p) => !value.includes(p))])
+    if (parts.length) onChange([...new Set([...value, ...parts])])
     setDraft('')
   }
   return (
-    <div className="input flex flex-wrap items-center gap-1.5 !py-2">
+    <div className="input flex flex-wrap items-center gap-1.5 !py-2 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/25">
       {value.map((t) => (
         <button
           key={t}
           type="button"
           onClick={() => onChange(value.filter((v) => v !== t))}
-          className="rounded-full bg-accent/15 px-2.5 py-0.5 text-sm text-accent-fg"
-          title="Remove"
+          className="rounded-full bg-accent/15 px-2.5 py-0.5 text-sm text-accent-fg hover:bg-accent/25"
+          aria-label={`Remove ${t}`}
         >
-          {t} ×
+          {t} <span aria-hidden>×</span>
         </button>
       ))}
       <input
+        aria-label={label}
+        name={label}
+        autoComplete="off"
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={(e) => {
@@ -170,7 +189,7 @@ export function TagInput({ value, onChange, placeholder }: { value: string[]; on
   )
 }
 
-export function BagPhoto({ blob, className = '', iconSize = 36 }: { blob?: Blob; className?: string; iconSize?: number }) {
+export function BagPhoto({ blob, className = '', iconSize = 36, alt = 'Coffee bag' }: { blob?: Blob; className?: string; iconSize?: number; alt?: string }) {
   const img = useRef<HTMLImageElement>(null)
 
   // Object URLs are an external resource: create per blob, revoke on change/unmount.
@@ -181,7 +200,7 @@ export function BagPhoto({ blob, className = '', iconSize = 36 }: { blob?: Blob;
     return () => URL.revokeObjectURL(url)
   }, [blob])
 
-  if (blob) return <img ref={img} alt="Coffee bag" className={`object-cover ${className}`} />
+  if (blob) return <img ref={img} alt={alt} className={`object-cover ${className}`} />
   return (
     <div className={`grid place-items-center bg-[radial-gradient(circle_at_30%_20%,color-mix(in_oklab,var(--accent)_14%,var(--tint)),var(--tint)_70%)] text-muted/50 ${className}`}>
       <Bean width={iconSize} height={iconSize} />
@@ -190,17 +209,48 @@ export function BagPhoto({ blob, className = '', iconSize = 36 }: { blob?: Blob;
 }
 
 /** Full-screen view of a bag photo; tap anywhere to close. */
-export function PhotoViewer({ blob, onClose }: { blob: Blob; onClose: () => void }) {
+export function PhotoViewer({ blob, alt, onClose }: { blob: Blob; alt?: string; onClose: () => void }) {
+  const close = useRef<HTMLButtonElement>(null)
+
+  // Modal: focus the close button, lock page scroll, and hand focus back on the way out.
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    const opener = document.activeElement as HTMLElement | null
+    const overflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    close.current?.focus()
+    return () => {
+      document.body.style.overflow = overflow
+      opener?.focus()
+    }
+  }, [])
+
+  useEffect(() => {
+    const onKey = (e: globalThis.KeyboardEvent) => e.key === 'Escape' && onClose()
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
   return (
-    <div role="dialog" aria-label="Bag photo" onClick={onClose} className="fixed inset-0 z-50 grid place-items-center bg-black/85 p-4 backdrop-blur-sm">
-      <BagPhoto blob={blob} className="max-h-full max-w-full rounded-[20px] !object-contain" />
-      <button type="button" className="absolute top-[max(env(safe-area-inset-top),1rem)] right-4 rounded-full bg-white/15 p-2 text-white" aria-label="Close">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Bag photo"
+      onClick={onClose}
+      className="fixed inset-0 z-50 grid place-items-center overscroll-contain bg-black/85 p-4 backdrop-blur-sm"
+    >
+      <BagPhoto blob={blob} alt={alt} className="max-h-full max-w-full rounded-[20px] !object-contain" />
+      <button
+        ref={close}
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          onClose()
+        }}
+        // The close button is the only focusable element, so Tab stays on it.
+        onKeyDown={(e) => e.key === 'Tab' && e.preventDefault()}
+        className="absolute top-[max(env(safe-area-inset-top),1rem)] right-4 rounded-full bg-white/15 p-2 text-white hover:bg-white/25"
+        aria-label="Close"
+      >
         <Close />
       </button>
     </div>
