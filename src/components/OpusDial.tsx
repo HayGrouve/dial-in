@@ -23,6 +23,7 @@ export function OpusDial({ value, fallback, onChange }: { value: string; fallbac
   const pos = written && toTwelfths(written) === size ? written : opusPosition(size, home)
 
   const scrollTo = (t: number, behavior: ScrollBehavior = 'smooth') => {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) behavior = 'instant'
     ruler.current?.scrollTo({ left: clamp(t) * TICK, behavior })
   }
 
@@ -106,7 +107,7 @@ export function OpusDial({ value, fallback, onChange }: { value: string; fallbac
         </button>
         <div className="num flex-1 text-center text-sm leading-tight text-muted">
           Size <span className="font-semibold text-ink">{fmtSize(size)}</span>
-          <div className="text-xs">≈ {opusMicrons(size)} µm</div>
+          <div className="text-xs">≈ {opusMicrons(size)}&nbsp;µm</div>
         </div>
         <button type="button" className="btn-ghost !px-4" onClick={() => step(1)} disabled={size >= OPUS_MAX}>
           Coarser +

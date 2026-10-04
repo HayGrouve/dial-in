@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, type MouseEvent } from 'react'
 import { Link } from 'wouter'
 import { compressImage } from '../lib/image'
 import { getApiKey } from '../lib/prefs'
@@ -22,10 +22,13 @@ export function BagScanner({
   front,
   onFront,
   onScanned,
+  onLeave,
 }: {
   front?: Blob
   onFront: (b: Blob | undefined) => void
   onScanned: (fields: ScannedFields) => void
+  /** Click handler for the link that leaves the form, e.g. an unsaved-changes guard. */
+  onLeave?: (e: MouseEvent) => void
 }) {
   // Full-resolution sources for reading the label; the stored front photo is downscaled.
   const [sources, setSources] = useState<{ front?: Blob; back?: Blob }>({})
@@ -86,15 +89,15 @@ export function BagScanner({
         ))}
       </div>
 
-      <div className="min-h-5 text-center text-sm text-muted">
+      <div className="min-h-5 text-center text-sm text-muted" aria-live="polite">
         {!hasKey ? (
           count > 0 && (
             <>
-              <Link href="/settings" className="font-semibold text-accent-fg underline">Add an API key</Link> to fill in the details from these photos.
+              <Link href="/settings" onClick={onLeave} className="font-semibold text-accent-fg underline">Add an API key</Link> to fill in the details from these photos.
             </>
           )
         ) : status.kind === 'reading' ? (
-          <span className="animate-pulse font-medium text-accent-fg">Reading the label…</span>
+          <span className="font-medium motion-safe:animate-pulse text-accent-fg">Reading the label…</span>
         ) : status.kind === 'done' ? (
           status.found ? `Found ${status.found} details on the label. Give them a quick check.` : 'Nothing readable on the label. Try a sharper photo.'
         ) : status.kind === 'error' ? (
@@ -141,10 +144,10 @@ function Slot({ side, photo, busy, onFile, onRemove }: { side: Side; photo?: Blo
     <div>
       {photo ? (
         <div className="relative">
-          <BagPhoto blob={photo} className="aspect-[4/5] w-full rounded-[20px] border border-line" />
+          <BagPhoto blob={photo} alt={`${label} of the bag`} className="aspect-[4/5] w-full rounded-[20px] border border-line" />
           <span className="absolute top-2 left-2 rounded-full bg-ink/75 px-2.5 py-1 text-xs font-semibold text-canvas backdrop-blur">{label}</span>
           <div className="absolute inset-x-2 bottom-2 flex justify-center gap-1.5">
-            <button type="button" className={pill} onClick={() => cameraRef.current?.click()}>Retake</button>
+            <button type="button" className={pill} onClick={() => cameraRef.current?.click()} aria-label={`Retake ${side} photo`}>Retake</button>
             <button type="button" className={pill} onClick={onRemove} aria-label={`Remove ${side} photo`}><Close width={14} height={14} /></button>
           </div>
         </div>
@@ -158,7 +161,7 @@ function Slot({ side, photo, busy, onFile, onRemove }: { side: Side; photo?: Blo
           >
             <Camera width={26} height={26} />
           </button>
-          <div className="text-sm font-semibold">{busy ? 'Processing…' : `${label} of the bag`}</div>
+          <div className="text-sm font-semibold" aria-live="polite">{busy ? 'Processing…' : `${label} of the bag`}</div>
           <button type="button" className="text-xs font-medium text-muted underline" onClick={() => libraryRef.current?.click()}>
             From library
           </button>

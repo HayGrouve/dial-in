@@ -9,6 +9,7 @@ const base = {
   strokeWidth: 1.8,
   strokeLinecap: 'round',
   strokeLinejoin: 'round',
+  'aria-hidden': true,
 } as const
 
 type P = SVGProps<SVGSVGElement>
