@@ -3,13 +3,13 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useLocation, useParams } from 'wouter'
 import { BagScanner } from '../components/BagScanner'
 import { Field, Header, Rating, Section, Segmented, TagInput } from '../components/ui'
+import { ReviewPill, WelcomeBackSheet } from '../components/WelcomeBackSheet'
 import { useLeaveGuard } from '../lib/a11y'
 import { db, newId, PROCESSES, ROAST_LEVELS, type Coffee } from '../lib/db'
 import { findMatches, matchKey, restockPlan } from '../lib/match'
 import { dotted } from '../lib/methods'
 import type { ScannedFields } from '../lib/scan'
 import { restockWithUndo } from '../lib/toast'
-import { ReviewPill, WelcomeBackSheet } from './WelcomeBackSheet'
 
 type Draft = Omit<Coffee, 'id' | 'createdAt' | 'updatedAt'>
 
