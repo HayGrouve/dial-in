@@ -1,10 +1,16 @@
+import { useLayoutEffect, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Link, useLocation, useSearch } from 'wouter'
 import { BagPhoto } from '../components/ui'
 import { Bean, Chevron, Gear, Plus, Search } from '../components/icons'
 import { db, type Brew, type Coffee } from '../lib/db'
 import { formatTime, METHODS, METHOD_SHORT, nextMove, relativeDay, settingsFor } from '../lib/methods'
-import { toastAnchor } from '../lib/toast'
+import { finishWithUndo, restockWithUndo, toastAnchor } from '../lib/toast'
+
+// Stretches a link over its whole row, so the row opens the coffee everywhere except its button
+// (a button can't sit inside a link). The row needs `relative`; its button is `relative` to sit on top.
+const stretched =
+  'rounded-[inherit] after:absolute after:inset-0 after:rounded-[inherit] focus-visible:outline-none focus-visible:after:outline-offset-2 focus-visible:after:[outline:2px_solid_var(--accent)]'
 
 export default function Home() {
   const coffees = useLiveQuery(() => db.coffees.orderBy('updatedAt').reverse().toArray())
@@ -23,12 +29,16 @@ export default function Home() {
   }
   const setQuery = (q: string) => setParam('q', q)
   const setShowFinished = (show: boolean) => setParam('finished', show ? '1' : undefined)
+  // Manage turns the shelf row into a list with a Finish button per coffee.
+  const [managing, setManaging] = useState(false)
 
   if (!coffees || !brews) return null
 
   const brewsOf = (id: string) => brews.filter((b) => b.coffeeId === id)
   const shelf = coffees.filter((c) => !c.finished)
   const finished = coffees.filter((c) => c.finished)
+  // Finishing the last coffee empties the shelf; leave Manage so it doesn't come back switched on.
+  if (managing && shelf.length === 0) setManaging(false)
 
   // The bag brewed most recently is the one you're most likely reaching for again.
   const lastBrew = brews.find((b) => shelf.some((c) => c.id === b.coffeeId))
@@ -81,15 +91,19 @@ export default function Home() {
           ) : (
             <ul className="space-y-1">
               {results.map((c) => (
-                <li key={c.id}>
-                  <Link href={`/coffee/${c.id}`} className="flex items-center gap-3 rounded-[20px] p-2 hover:bg-surface">
+                <li key={c.id} className="relative flex items-center gap-3 rounded-[20px] p-2 hover:bg-surface">
+                  <Link href={`/coffee/${c.id}`} className={`flex min-w-0 flex-1 items-center gap-3 ${stretched}`}>
                     <BagPhoto blob={c.photo} alt="" className="aspect-[4/5] w-12 shrink-0 rounded-xl" iconSize={18} />
                     <div className="min-w-0 flex-1">
                       <div className="truncate font-medium">{c.name}</div>
                       <div className="truncate text-sm text-muted">{c.finished ? `${c.roaster}, finished` : c.roaster}</div>
+                      {/* A finished coffee's pill takes the trailing edge, so its settings move under the name. */}
+                      {c.finished && <SettingsLine brews={brewsOf(c.id)} />}
                     </div>
-                    <SettingsLine brews={brewsOf(c.id)} />
+                    {!c.finished && <SettingsLine brews={brewsOf(c.id)} />}
                   </Link>
+                  {/* Finishing lives on Up Next, Manage and the coffee page; search only restocks. */}
+                  {c.finished && <BoughtItAgain coffee={c} />}
                 </li>
               ))}
             </ul>
@@ -101,14 +115,24 @@ export default function Home() {
 
           {shelf.length > 0 && (
             <section className={upNext ? 'mt-10' : ''}>
-              <h2 className="mb-4 text-xl font-semibold tracking-tight">On the shelf</h2>
-              <ul className="-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                {shelf.map((c, i) => (
-                  <li key={c.id} className="rise w-[42vw] max-w-[180px] shrink-0 snap-start" style={{ '--i': i } as React.CSSProperties}>
-                    <ShelfCard coffee={c} brews={brewsOf(c.id)} />
-                  </li>
-                ))}
-              </ul>
+              <div className="mb-4 flex items-center justify-between gap-4">
+                <h2 className="text-xl font-semibold tracking-tight">On the shelf</h2>
+                {/* 44px tall, pulled into the heading's line so the row keeps its height. */}
+                <button type="button" onClick={() => setManaging(!managing)} className={`-my-2 min-h-11 ${managing ? 'btn-primary' : 'btn-ghost'}`}>
+                  {managing ? 'Done' : 'Manage'}
+                </button>
+              </div>
+              {managing ? (
+                <ul className="space-y-2">
+                  {shelf.map((c, i) => (
+                    <li key={c.id} className="rise" style={{ '--i': i } as React.CSSProperties}>
+                      <ManageRow coffee={c} />
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <ShelfRow shelf={shelf} brewsOf={brewsOf} />
+              )}
             </section>
           )}
 
@@ -146,11 +170,12 @@ export default function Home() {
               {showFinished && (
                 <ul className="mt-2 space-y-1">
                   {finished.map((c) => (
-                    <li key={c.id}>
-                      <Link href={`/coffee/${c.id}`} className="flex items-center justify-between gap-3 rounded-full px-4 py-3 hover:bg-surface">
+                    <li key={c.id} className="relative flex items-center gap-2 rounded-full py-1 pr-1 pl-4 hover:bg-surface">
+                      <Link href={`/coffee/${c.id}`} className={`flex min-w-0 flex-1 flex-col py-1.5 ${stretched}`}>
                         <span className="truncate">{c.name}</span>
                         <SettingsLine brews={brewsOf(c.id)} />
                       </Link>
+                      <BoughtItAgain coffee={c} />
                     </li>
                   ))}
                 </ul>
@@ -200,10 +225,41 @@ function UpNext({ coffee, brews, last }: { coffee: Coffee; brews: Brew[]; last: 
           {formatTime(setting.timeSec)}
         </p>
       </div>
-      <Link href={`/coffee/${coffee.id}/brew/new?method=${setting.method}`} className="btn-primary mt-5 w-full !py-3.5 !text-base">
-        <Plus width={18} height={18} /> Log another {m.label.toLowerCase()}
-      </Link>
+      <div className="mt-5 flex gap-2">
+        <Link href={`/coffee/${coffee.id}/brew/new?method=${setting.method}`} className="btn-primary min-w-0 flex-1 !px-4 !py-3.5 !text-base">
+          <Plus width={18} height={18} className="shrink-0" /> <span className="truncate">Log another {m.label.toLowerCase()}</span>
+        </Link>
+        <button type="button" onClick={() => finishWithUndo(coffee)} className="btn-ghost shrink-0 !px-4" aria-label={`Finish bag of ${coffee.name}`}>
+          Finish bag
+        </button>
+      </div>
     </section>
+  )
+}
+
+function ShelfRow({ shelf, brewsOf }: { shelf: Coffee[]; brewsOf: (id: string) => Brew[] }) {
+  const row = useRef<HTMLUListElement>(null)
+  const atStart = useRef(true)
+  // Scroll snap holds on to the card it was snapped to, so a coffee restocked to the front would land
+  // out of view. If the row was at its start, it stays there and the coffee lands in view.
+  const front = shelf[0].id
+  useLayoutEffect(() => {
+    if (atStart.current) row.current?.scrollTo({ left: 0 })
+  }, [front])
+  return (
+    <ul
+      ref={row}
+      onScroll={(e) => {
+        atStart.current = e.currentTarget.scrollLeft < 8
+      }}
+      className="-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    >
+      {shelf.map((c, i) => (
+        <li key={c.id} className="rise w-[42vw] max-w-[180px] shrink-0 snap-start" style={{ '--i': i } as React.CSSProperties}>
+          <ShelfCard coffee={c} brews={brewsOf(c.id)} />
+        </li>
+      ))}
+    </ul>
   )
 }
 
@@ -217,6 +273,33 @@ function ShelfCard({ coffee, brews }: { coffee: Coffee; brews: Brew[] }) {
         <SettingsLine brews={brews} />
       </div>
     </Link>
+  )
+}
+
+/** A shelf coffee in Manage mode: the whole row opens it, the button finishes it. */
+function ManageRow({ coffee }: { coffee: Coffee }) {
+  return (
+    <div className="relative flex items-center gap-3 rounded-[20px] bg-surface p-2 transition hover:bg-tint">
+      <Link href={`/coffee/${coffee.id}`} className={`flex min-w-0 flex-1 items-center gap-3 ${stretched}`}>
+        <BagPhoto blob={coffee.photo} alt="" className="aspect-[4/5] w-12 shrink-0 rounded-xl" iconSize={18} />
+        <div className="min-w-0">
+          <div className="truncate font-medium">{coffee.name}</div>
+          <div className="truncate text-sm text-muted">{coffee.roaster}</div>
+        </div>
+      </Link>
+      <button type="button" onClick={() => finishWithUndo(coffee)} className="btn-ghost relative min-h-11 shrink-0" aria-label={`Finish ${coffee.name}`}>
+        Finish
+      </button>
+    </div>
+  )
+}
+
+/** Restocks a finished coffee in place: the toast confirms it, and the page stays where it is. */
+function BoughtItAgain({ coffee }: { coffee: Coffee }) {
+  return (
+    <button type="button" onClick={() => restockWithUndo(coffee)} className="btn-ghost relative min-h-11 shrink-0 !px-4" aria-label={`Bought it again: ${coffee.name}`}>
+      Bought it again
+    </button>
   )
 }
 
