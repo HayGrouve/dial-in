@@ -2,10 +2,12 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useState } from 'react'
 import { Link, useLocation, useParams, useSearch } from 'wouter'
 import { Back, Pin, Plus, Trash } from '../components/icons'
+import { PROTOTYPE, PrototypeSwitcher } from '../components/PrototypeSwitcher'
 import { BagPhoto, PhotoViewer, Rating } from '../components/ui'
 import { arrowKeys } from '../lib/a11y'
 import { db, deleteCoffee, setDialedIn, type Brew, type BrewMethod, type Coffee } from '../lib/db'
 import { formatTime, logLabel, METHODS, nextMove, ratio, relativeDay, settingsFor } from '../lib/methods'
+import CoffeeDetailPrototype, { PROTO_VARIANTS } from './CoffeeDetail.prototype'
 
 const TASTE_WORD = { sour: 'Sour', balanced: 'Balanced', bitter: 'Bitter' } as const
 
@@ -14,7 +16,10 @@ export default function CoffeeDetail() {
   const [, navigate] = useLocation()
   const [viewing, setViewing] = useState(false)
   // The method tab lives in the URL so back-navigation and links land on the same tab.
-  const picked = new URLSearchParams(useSearch()).get('method') as BrewMethod | null
+  const search = new URLSearchParams(useSearch())
+  const picked = search.get('method') as BrewMethod | null
+  // PROTOTYPE: `?variant=A|B|C` swaps in a placement variant for Finish / Bought it again.
+  const variant = PROTOTYPE ? PROTO_VARIANTS.find((v) => v.key === search.get('variant')) : undefined
   const pick = (method: BrewMethod) => navigate(`/coffee/${id}?method=${method}`, { replace: true })
   const coffee = useLiveQuery(() => db.coffees.get(id), [id])
   const brews = useLiveQuery(() => db.brews.where('coffeeId').equals(id).reverse().sortBy('createdAt'), [id])
@@ -24,6 +29,8 @@ export default function CoffeeDetail() {
 
   const settings = settingsFor(brews)
   const current = settings.find((s) => s.brew.method === picked) ?? settings[0]
+
+  if (variant) return <CoffeeDetailPrototype variant={variant.key} coffee={coffee} brews={brews} />
 
   const toggleFinished = () => db.coffees.update(id, { finished: !coffee.finished, updatedAt: Date.now() })
   const rate = (rating: number | undefined) => db.coffees.update(id, { rating, updatedAt: Date.now() })
@@ -134,12 +141,13 @@ export default function CoffeeDetail() {
       </div>
 
       {viewing && coffee.photo && <PhotoViewer blob={coffee.photo} alt={`Bag of ${coffee.name}`} onClose={() => setViewing(false)} />}
+      <PrototypeSwitcher variants={PROTO_VARIANTS} state={coffee.finished ? 'finished' : 'on the shelf'} />
     </>
   )
 }
 
 /** The number to come back to, the recipe around it, and what to do next. */
-function SettingCard({ brew, provisional, tries }: { brew: Brew; provisional: boolean; tries: Brew[] }) {
+export function SettingCard({ brew, provisional, tries }: { brew: Brew; provisional: boolean; tries: Brew[] }) {
   const m = METHODS[brew.method]
   const latest = tries[0]
   const move = latest.taste && nextMove(latest.taste)
@@ -206,7 +214,7 @@ function SettingCard({ brew, provisional, tries }: { brew: Brew; provisional: bo
   )
 }
 
-function TryRow({ brew: b }: { brew: Brew }) {
+export function TryRow({ brew: b }: { brew: Brew }) {
   return (
     <li className="relative pb-5 pl-6 last:pb-0">
       <span
@@ -239,7 +247,7 @@ function TryRow({ brew: b }: { brew: Brew }) {
   )
 }
 
-function About({ coffee }: { coffee: Coffee }) {
+export function About({ coffee }: { coffee: Coffee }) {
   const facts = [
     ['Process', coffee.process],
     ['Varietal', coffee.varietal],
