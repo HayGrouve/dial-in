@@ -1,0 +1,154 @@
+/* PROTOTYPE (issue #9): motion for coffees moving between the shelf and Finished. Throwaway. */
+
+/* Rows slide sideways on their way out; never let that scroll the page horizontally. */
+body {
+  overflow-x: clip;
+}
+
+/* Full-width rows collapse/expand through a 1fr <-> 0fr grid track, since height:auto can't animate. */
+.proto-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 1fr;
+}
+.proto-row > * {
+  min-height: 0;
+}
+
+/* Long-press accelerator (variant B): no iOS link preview, callout or text selection on the card. */
+.proto-no-callout {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* A: the card folds away and the row closes the gap. */
+  .proto-shelf-fold {
+    animation: proto-shelf-fold calc(460ms * var(--proto-slow, 1)) cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+  /* B: the card drops toward the Finished list below, then the gap closes. */
+  .proto-shelf-drop {
+    animation: proto-shelf-drop calc(520ms * var(--proto-slow, 1)) cubic-bezier(0.5, 0, 0.75, 0) forwards;
+  }
+  /* Restocked or undone: the card slides in at its spot on the shelf. */
+  .proto-shelf-arrive {
+    animation: proto-shelf-arrive calc(520ms * var(--proto-slow, 1)) cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .proto-row-out {
+    animation: proto-row-out calc(420ms * var(--proto-slow, 1)) cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+  .proto-row-out-left {
+    animation: proto-row-out-left calc(320ms * var(--proto-slow, 1)) cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+  .proto-row-in {
+    animation: proto-row-in calc(480ms * var(--proto-slow, 1)) cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .proto-pulse {
+    animation: proto-pulse calc(900ms * var(--proto-slow, 1)) cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .proto-sheet {
+    animation: proto-sheet calc(280ms * var(--proto-slow, 1)) cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .proto-scrim {
+    animation: proto-scrim calc(200ms * var(--proto-slow, 1)) ease-out both;
+  }
+  .proto-toast {
+    animation: proto-toast calc(320ms * var(--proto-slow, 1)) cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+}
+
+/* Arrival glow is a colour change, so it stays on for reduced-motion users too. */
+.proto-glow {
+  animation: proto-glow calc(1.8s * var(--proto-slow, 1)) ease-out;
+}
+
+@keyframes proto-shelf-fold {
+  35% {
+    opacity: 0.35;
+    transform: scale(0.88);
+    filter: grayscale(1);
+  }
+  100% {
+    width: 0;
+    margin-right: -0.75rem;
+    opacity: 0;
+    transform: scale(0.8);
+    filter: grayscale(1);
+  }
+}
+@keyframes proto-shelf-drop {
+  50% {
+    transform: translateY(72px) rotate(-6deg);
+    opacity: 0;
+    width: min(42vw, 180px);
+    margin-right: 0;
+  }
+  100% {
+    transform: translateY(72px) rotate(-6deg);
+    opacity: 0;
+    width: 0;
+    margin-right: -0.75rem;
+  }
+}
+@keyframes proto-shelf-arrive {
+  from {
+    width: 0;
+    margin-right: -0.75rem;
+    opacity: 0;
+    transform: scale(0.85);
+  }
+}
+@keyframes proto-row-out {
+  40% {
+    opacity: 0;
+    transform: translateX(24%);
+    grid-template-rows: 1fr;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(24%);
+    grid-template-rows: 0fr;
+  }
+}
+@keyframes proto-row-out-left {
+  to {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+}
+@keyframes proto-row-in {
+  from {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+}
+@keyframes proto-pulse {
+  20% {
+    color: var(--accent-fg);
+    transform: scale(1.25);
+  }
+}
+@keyframes proto-glow {
+  0%,
+  35% {
+    box-shadow: 0 0 0 3px var(--accent);
+    background-color: color-mix(in oklab, var(--accent) 16%, transparent);
+  }
+}
+@keyframes proto-scrim {
+  from {
+    background-color: transparent;
+  }
+}
+@keyframes proto-sheet {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes proto-toast {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}

@@ -1,9 +1,14 @@
+import { useEffect } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Link, useLocation, useSearch } from 'wouter'
 import { BagPhoto } from '../components/ui'
 import { Bean, Chevron, Gear, Plus, Search } from '../components/icons'
 import { db, type Brew, type Coffee } from '../lib/db'
 import { formatTime, METHODS, METHOD_SHORT, nextMove, relativeDay, settingsFor } from '../lib/methods'
+// PROTOTYPE (issue #9): finish/restock variants, gated to dev and Vercel previews.
+import { PROTOTYPE_ENABLED } from '../components/PrototypeSwitcher'
+import { seedPrototype } from '../lib/seed.prototype'
+import HomePrototype from './Home.prototype'
 
 export default function Home() {
   const coffees = useLiveQuery(() => db.coffees.orderBy('updatedAt').reverse().toArray())
@@ -22,6 +27,13 @@ export default function Home() {
   }
   const setQuery = (q: string) => setParam('q', q)
   const setShowFinished = (show: boolean) => setParam('finished', show ? '1' : undefined)
+
+  // PROTOTYPE: `?variant=A|B|C` picks a variant; `?seed=prototype` writes sample coffees.
+  const variant = PROTOTYPE_ENABLED ? (params.get('variant') ?? 'A') : null
+  const seed = PROTOTYPE_ENABLED && params.get('seed') === 'prototype'
+  useEffect(() => {
+    if (seed) void seedPrototype().then(() => setParam('seed', undefined))
+  }, [seed])
 
   if (!coffees || !brews) return null
 
@@ -43,6 +55,21 @@ export default function Home() {
   const results = coffees.filter((c) =>
     [c.name, c.roaster, c.origin, c.region, c.producer, c.process, c.varietal, ...c.tastingNotes].some((s) => s?.toLowerCase().includes(q)),
   )
+
+  if (variant && coffees.length > 0)
+    return (
+      <HomePrototype
+        variant={variant}
+        setVariant={(v) => setParam('variant', v)}
+        coffees={coffees}
+        brews={brews}
+        query={query}
+        setQuery={setQuery}
+        showSearch={showSearch}
+        showFinished={showFinished}
+        setShowFinished={setShowFinished}
+      />
+    )
 
   return (
     <>
@@ -218,7 +245,7 @@ function ShelfCard({ coffee, brews }: { coffee: Coffee; brews: Brew[] }) {
   )
 }
 
-function DialingRow({ coffee, last }: { coffee: Coffee; last: Brew }) {
+export function DialingRow({ coffee, last }: { coffee: Coffee; last: Brew }) {
   const move = last.taste && nextMove(last.taste)
   return (
     <Link href={`/coffee/${coffee.id}`} className="flex items-center gap-4 rounded-[28px] bg-surface p-4 transition hover:bg-tint">
@@ -241,7 +268,7 @@ function DialingRow({ coffee, last }: { coffee: Coffee; last: Brew }) {
   )
 }
 
-function SettingsLine({ brews }: { brews: Brew[] }) {
+export function SettingsLine({ brews }: { brews: Brew[] }) {
   const pinned = settingsFor(brews).filter((s) => !s.provisional)
   if (pinned.length === 0) return <span className="shrink-0 text-sm text-muted">{brews.length ? 'Dialing in' : 'Not brewed yet'}</span>
   return (
