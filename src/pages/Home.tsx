@@ -37,6 +37,8 @@ export default function Home() {
   const brewsOf = (id: string) => brews.filter((b) => b.coffeeId === id)
   const shelf = coffees.filter((c) => !c.finished)
   const finished = coffees.filter((c) => c.finished)
+  // Finishing the last coffee empties the shelf; leave Manage so it doesn't come back switched on.
+  if (managing && shelf.length === 0) setManaging(false)
 
   // The bag brewed most recently is the one you're most likely reaching for again.
   const lastBrew = brews.find((b) => shelf.some((c) => c.id === b.coffeeId))
