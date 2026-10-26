@@ -170,6 +170,9 @@ function SettingCard({ brew, provisional, tries, finished }: { brew: Brew; provi
   const m = METHODS[brew.method]
   const latest = tries[0]
   const move = latest.taste && nextMove(latest.taste)
+  // Mid-sentence: "pinned today", but a date keeps its capital ("pinned Sep 21").
+  const pinnedDay = relativeDay(brew.createdAt)
+  const pinned = /^(Today|Yesterday)$/.test(pinnedDay) ? pinnedDay.toLowerCase() : pinnedDay
   const extras = [
     brew.preinfusion && `Pre-infusion${brew.preinfusionSec ? ` ${brew.preinfusionSec}s` : ''}`,
     brew.bloomSec && `Bloom ${brew.bloomSec}s`,
@@ -220,7 +223,7 @@ function SettingCard({ brew, provisional, tries, finished }: { brew: Brew; provi
             </>
           ) : (
             <>
-              Pinned {relativeDay(brew.createdAt).toLowerCase()}, after {tries.length} {tries.length === 1 ? 'try' : 'tries'}.
+              Pinned {pinned}, after {tries.length} {tries.length === 1 ? 'try' : 'tries'}.
             </>
           )}
         </p>
