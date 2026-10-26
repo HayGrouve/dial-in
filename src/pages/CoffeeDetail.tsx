@@ -6,6 +6,7 @@ import { BagPhoto, PhotoViewer, Rating } from '../components/ui'
 import { arrowKeys } from '../lib/a11y'
 import { db, deleteCoffee, setDialedIn, type Brew, type BrewMethod, type Coffee } from '../lib/db'
 import { formatTime, logLabel, METHODS, nextMove, ratio, relativeDay, settingsFor } from '../lib/methods'
+import { finishWithUndo, restockWithUndo, toastAnchor } from '../lib/toast'
 
 const TASTE_WORD = { sour: 'Sour', balanced: 'Balanced', bitter: 'Bitter' } as const
 
@@ -25,7 +26,7 @@ export default function CoffeeDetail() {
   const settings = settingsFor(brews)
   const current = settings.find((s) => s.brew.method === picked) ?? settings[0]
 
-  const toggleFinished = () => db.coffees.update(id, { finished: !coffee.finished, updatedAt: Date.now() })
+  const toggleFinished = () => (coffee.finished ? restockWithUndo(coffee) : finishWithUndo(coffee))
   const rate = (rating: number | undefined) => db.coffees.update(id, { rating, updatedAt: Date.now() })
   const remove = async () => {
     if (!confirm(`Delete “${coffee.name}” and all ${brews.length} ${brews.length === 1 ? 'brew' : 'brews'}?`)) return
@@ -126,6 +127,7 @@ export default function CoffeeDetail() {
 
       <div className="fixed inset-x-0 bottom-0 z-20 bg-gradient-to-t from-canvas from-50% to-transparent px-4 pt-8 pb-[max(env(safe-area-inset-bottom),1rem)]">
         <Link
+          ref={toastAnchor}
           href={`/coffee/${id}/brew/new${current ? `?method=${current.brew.method}` : ''}`}
           className="btn-primary mx-auto !flex w-full max-w-[44rem] !py-4 !text-base"
         >

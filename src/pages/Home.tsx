@@ -4,6 +4,7 @@ import { BagPhoto } from '../components/ui'
 import { Bean, Chevron, Gear, Plus, Search } from '../components/icons'
 import { db, type Brew, type Coffee } from '../lib/db'
 import { formatTime, METHODS, METHOD_SHORT, nextMove, relativeDay, settingsFor } from '../lib/methods'
+import { toastAnchor } from '../lib/toast'
 
 export default function Home() {
   const coffees = useLiveQuery(() => db.coffees.orderBy('updatedAt').reverse().toArray())
@@ -162,6 +163,7 @@ export default function Home() {
 
       {coffees.length > 0 && (
         <Link
+          ref={toastAnchor}
           href="/coffee/new"
           className="btn fixed right-[max(1rem,calc(50vw-24rem+1rem))] bottom-[max(env(safe-area-inset-bottom),1rem)] z-30 bg-ink !px-5 !py-3.5 text-canvas hover:bg-ink/90 shadow-[0_12px_32px_-12px_rgb(6_14_11/0.6)]"
         >

@@ -116,3 +116,38 @@ export async function deleteCoffee(id: string) {
     await db.coffees.delete(id)
   })
 }
+
+/** Puts back what a reversible action changed. */
+export type Undo = () => Promise<void>
+
+/**
+ * Changes a coffee and moves it to the front of its list. The returned undo puts back exactly the
+ * fields it replaced, `updatedAt` included, so undoing doesn't reorder the shelf.
+ */
+async function changeCoffee(id: string, changes: Partial<Coffee>): Promise<Undo> {
+  const next = { ...changes, updatedAt: Date.now() }
+  const before = await db.transaction('rw', db.coffees, async () => {
+    const coffee = await db.coffees.get(id)
+    if (!coffee) throw new Error(`Coffee ${id} not found`)
+    await db.coffees.update(id, next)
+    return coffee
+  })
+  // Fields that were empty come back as undefined, which Dexie removes again.
+  const previous = Object.fromEntries(Object.keys(next).map((k) => [k, before[k as keyof Coffee]])) as Partial<Coffee>
+  return async () => {
+    await db.coffees.update(id, previous)
+  }
+}
+
+/** The bag is used up: the coffee moves off the shelf. */
+export function finishCoffee(id: string) {
+  return changeCoffee(id, { finished: true })
+}
+
+/**
+ * Another bag of a finished coffee: it goes back on the shelf. `changes` carries anything the new
+ * bag brings (a photo, details to fill in), and undo restores the previous record exactly.
+ */
+export function restockCoffee(id: string, changes: Partial<Omit<Coffee, 'id' | 'finished' | 'updatedAt'>> = {}) {
+  return changeCoffee(id, { ...changes, finished: false })
+}
