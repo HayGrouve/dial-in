@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useState } from 'react'
 import { Link, useLocation, useParams, useSearch } from 'wouter'
-import { Back, Pin, Plus, Trash } from '../components/icons'
+import { Back, Check, Pin, Plus, Trash } from '../components/icons'
 import { BagPhoto, PhotoViewer, Rating } from '../components/ui'
 import { arrowKeys } from '../lib/a11y'
 import { db, deleteCoffee, setDialedIn, type Brew, type BrewMethod, type Coffee } from '../lib/db'
@@ -9,6 +9,8 @@ import { formatTime, logLabel, METHODS, nextMove, ratio, relativeDay, settingsFo
 import { finishWithUndo, restockWithUndo, toastAnchor } from '../lib/toast'
 
 const TASTE_WORD = { sour: 'Sour', balanced: 'Balanced', bitter: 'Bitter' } as const
+/** The status row's button: Finish bag on the shelf, Log a brew once finished. */
+const STATUS_ACTION = 'btn shrink-0 border border-line bg-surface !px-4 !py-2 text-ink hover:bg-canvas'
 
 export default function CoffeeDetail() {
   const { id } = useParams<{ id: string }>()
@@ -26,7 +28,8 @@ export default function CoffeeDetail() {
   const settings = settingsFor(brews)
   const current = settings.find((s) => s.brew.method === picked) ?? settings[0]
 
-  const toggleFinished = () => (coffee.finished ? restockWithUndo(coffee) : finishWithUndo(coffee))
+  const { finished } = coffee
+  const logHref = `/coffee/${id}/brew/new${current ? `?method=${current.brew.method}` : ''}`
   const rate = (rating: number | undefined) => db.coffees.update(id, { rating, updatedAt: Date.now() })
   const remove = async () => {
     if (!confirm(`Delete “${coffee.name}” and all ${brews.length} ${brews.length === 1 ? 'brew' : 'brews'}?`)) return
@@ -60,11 +63,29 @@ export default function CoffeeDetail() {
 
       <div className="relative -mt-24 pb-32">
         <div className="rise">
-          <p className="truncate text-sm text-muted">{[coffee.roaster, coffee.origin].filter(Boolean).join(', ')}</p>
+          <div className="flex min-w-0 items-center gap-2">
+            {finished && <span className="shrink-0 rounded-full bg-tint px-2.5 py-0.5 text-xs font-medium">Finished</span>}
+            <p className="truncate text-sm text-muted">{[coffee.roaster, coffee.origin].filter(Boolean).join(', ')}</p>
+          </div>
           <h1 className="mt-1 text-[40px] leading-[1.02] break-words font-semibold tracking-[-0.03em]">{coffee.name}</h1>
           {coffee.tastingNotes.length > 0 && <p className="mt-2 text-lg text-accent-fg">{coffee.tastingNotes.join(', ')}</p>}
           <div className="mt-2 -ml-1">
             <Rating value={coffee.rating} onChange={rate} size={20} />
+          </div>
+
+          {/* Shelf status, holding whichever action isn't in the sticky button */}
+          <div className="mt-4 flex items-center gap-3 rounded-[20px] bg-tint py-2 pr-2 pl-4">
+            <span className={`h-2 w-2 shrink-0 rounded-full ${finished ? 'border border-muted' : 'bg-accent'}`} aria-hidden />
+            <p className={`flex-1 text-sm ${finished ? 'text-muted' : ''}`}>{finished ? 'Bag finished' : 'On your shelf'}</p>
+            {finished ? (
+              <Link href={logHref} className={STATUS_ACTION}>
+                <Plus width={16} height={16} /> Log a brew
+              </Link>
+            ) : (
+              <button type="button" onClick={() => finishWithUndo(coffee)} className={STATUS_ACTION}>
+                <Check width={16} height={16} /> Finish bag
+              </button>
+            )}
           </div>
         </div>
 
@@ -94,7 +115,7 @@ export default function CoffeeDetail() {
             )}
 
             <div {...(settings.length > 1 ? { role: 'tabpanel', id: 'method-panel', 'aria-labelledby': `tab-${current.brew.method}` } : {})}>
-              <SettingCard key={current.brew.method} brew={current.brew} provisional={current.provisional} tries={current.tries} />
+              <SettingCard key={current.brew.method} brew={current.brew} provisional={current.provisional} tries={current.tries} finished={finished} />
 
               {current.tries.length > 1 && (
                 <section className="mt-8">
@@ -114,25 +135,29 @@ export default function CoffeeDetail() {
 
         <About coffee={coffee} />
 
-        <div className="mt-10 flex flex-wrap items-center gap-2">
-          <button type="button" onClick={toggleFinished} className="btn-ghost">
-            {coffee.finished ? 'Bought it again' : 'Finish bag'}
-          </button>
+        <div className="mt-10">
           <button type="button" onClick={remove} className="btn-ghost !text-bitter">
             <Trash width={16} height={16} /> Delete
           </button>
-          {coffee.finished && <span className="text-sm text-muted">This bag is finished.</span>}
         </div>
       </div>
 
+      {/* The main action: log a brew, or restock once the bag is finished. The toast sits above it. */}
       <div className="fixed inset-x-0 bottom-0 z-20 bg-gradient-to-t from-canvas from-50% to-transparent px-4 pt-8 pb-[max(env(safe-area-inset-bottom),1rem)]">
-        <Link
-          ref={toastAnchor}
-          href={`/coffee/${id}/brew/new${current ? `?method=${current.brew.method}` : ''}`}
-          className="btn-primary mx-auto !flex w-full max-w-[44rem] !py-4 !text-base"
-        >
-          <Plus width={18} height={18} /> {current ? logLabel(current.brew.method) : 'Log a brew'}
-        </Link>
+        {finished ? (
+          <button
+            ref={toastAnchor}
+            type="button"
+            onClick={() => restockWithUndo(coffee)}
+            className="btn-primary mx-auto !flex w-full max-w-[44rem] !py-4 !text-base"
+          >
+            Bought it again
+          </button>
+        ) : (
+          <Link ref={toastAnchor} href={logHref} className="btn-primary mx-auto !flex w-full max-w-[44rem] !py-4 !text-base">
+            <Plus width={18} height={18} /> {current ? logLabel(current.brew.method) : 'Log a brew'}
+          </Link>
+        )}
       </div>
 
       {viewing && coffee.photo && <PhotoViewer blob={coffee.photo} alt={`Bag of ${coffee.name}`} onClose={() => setViewing(false)} />}
@@ -141,7 +166,7 @@ export default function CoffeeDetail() {
 }
 
 /** The number to come back to, the recipe around it, and what to do next. */
-function SettingCard({ brew, provisional, tries }: { brew: Brew; provisional: boolean; tries: Brew[] }) {
+function SettingCard({ brew, provisional, tries, finished }: { brew: Brew; provisional: boolean; tries: Brew[]; finished: boolean }) {
   const m = METHODS[brew.method]
   const latest = tries[0]
   const move = latest.taste && nextMove(latest.taste)
@@ -161,7 +186,8 @@ function SettingCard({ brew, provisional, tries }: { brew: Brew; provisional: bo
     <section className="rise card mt-6 p-5">
       <Link href={`/coffee/${brew.coffeeId}/brew/${brew.id}`} className="block">
         <div className="flex items-center justify-between gap-3 text-sm text-muted">
-          <span>{provisional ? 'Still dialing' : 'Your setting'}</span>
+          {/* A finished bag's unpinned setting is where the next bag picks up, not still in progress. */}
+          <span>{provisional ? (finished ? 'Where you left off' : 'Still dialing') : 'Your setting'}</span>
           {brew.grinder && <span className="truncate">{brew.grinder}</span>}
         </div>
         <div
