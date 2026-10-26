@@ -175,10 +175,14 @@ export default function Home() {
               {showFinished && (
                 <ul className="mt-2 space-y-1">
                   {finished.map((c) => (
-                    <li key={c.id} className="relative flex items-center gap-2 rounded-full py-1 pr-1 pl-4 hover:bg-surface">
-                      <Link href={`/coffee/${c.id}`} className={`flex min-w-0 flex-1 flex-col py-1.5 ${stretched}`}>
-                        <span className="truncate">{c.name}</span>
-                        <SettingsLine brews={brewsOf(c.id)} />
+                    <li key={c.id} className="relative flex items-center gap-2 rounded-full py-1 pr-1 pl-1.5 hover:bg-surface">
+                      {/* The photo tells apart two bags with the same name from different roasters. */}
+                      <Link href={`/coffee/${c.id}`} className={`flex min-w-0 flex-1 items-center gap-3 ${stretched}`}>
+                        <BagPhoto blob={c.photo} alt="" className="size-11 shrink-0 rounded-full" iconSize={16} />
+                        <span className="flex min-w-0 flex-col py-1.5">
+                          <span className="truncate">{c.name}</span>
+                          <SettingsLine brews={brewsOf(c.id)} />
+                        </span>
                       </Link>
                       <BoughtItAgain coffee={c} />
                     </li>
