@@ -5,8 +5,11 @@ import { BagScanner } from '../components/BagScanner'
 import { Field, Header, Rating, Section, Segmented, TagInput } from '../components/ui'
 import { useLeaveGuard } from '../lib/a11y'
 import { db, newId, PROCESSES, ROAST_LEVELS, type Coffee } from '../lib/db'
+import { findMatches, matchKey, restockPlan } from '../lib/match'
 import { dotted } from '../lib/methods'
 import type { ScannedFields } from '../lib/scan'
+import { restockWithUndo } from '../lib/toast'
+import { ReviewPill, WelcomeBackSheet } from './WelcomeBackSheet'
 
 type Draft = Omit<Coffee, 'id' | 'createdAt' | 'updatedAt'>
 
@@ -20,7 +23,27 @@ export default function CoffeeForm() {
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
   const guard = useLeaveGuard(dirty && !saving)
-  const roasters = useLiveQuery(async () => [...new Set((await db.coffees.toArray()).map((c) => c.roaster))].sort(), [])
+  const coffees = useLiveQuery(() => db.coffees.toArray(), [])
+  const roasters = coffees && [...new Set(coffees.map((c) => c.roaster))].sort()
+
+  // New coffee only: a coffee you've had before is offered back instead of added twice. The offer
+  // is made once per match (`offered`), and not again after Add as new anyway (`declined`).
+  const [offered, setOffered] = useState('')
+  const [declined, setDeclined] = useState('')
+  const [sheet, setSheet] = useState(false)
+  // Set on leaving the name or roaster field and after a scan, so the offer never opens mid-word.
+  // Settled during the next render, once the scanned fields are in the draft.
+  const [check, setCheck] = useState(false)
+  const key = id ? '' : matchKey(draft)
+  const matches = key && coffees ? findMatches(coffees, draft) : []
+  const offer = matches.length > 0 && key !== declined
+  if (check && coffees) {
+    setCheck(false)
+    if (offer && key !== offered) {
+      setOffered(key)
+      setSheet(true)
+    }
+  }
 
   useEffect(() => {
     if (!id) return
@@ -44,6 +67,7 @@ export default function CoffeeForm() {
   // Label details only fill fields that are still empty, so nothing typed by hand is overwritten.
   const applyScan = (fields: ScannedFields) => {
     setDirty(true)
+    setCheck(true)
     setDraft((d) => {
       const next = { ...d }
       for (const [key, value] of Object.entries(fields) as [keyof ScannedFields, ScannedFields[keyof ScannedFields]][]) {
@@ -57,6 +81,12 @@ export default function CoffeeForm() {
 
   const save = async (e: FormEvent) => {
     e.preventDefault()
+    // Enter in the name field submits without leaving it: offer the match first, as leaving would.
+    if (offer && key !== offered) {
+      setOffered(key)
+      setSheet(true)
+      return
+    }
     setSaving(true)
     const now = Date.now()
     if (id) {
@@ -67,6 +97,21 @@ export default function CoffeeForm() {
       await db.coffees.add(coffee)
       navigate(`/coffee/${coffee.id}`, { replace: true })
     }
+  }
+
+  // Leaving the form on purpose: `saving` turns the unsaved-changes guard off.
+  const restock = async (coffee: Coffee) => {
+    setSaving(true)
+    await restockWithUndo(coffee, restockPlan(coffee, draft).changes)
+    navigate(`/coffee/${coffee.id}`, { replace: true })
+  }
+  const open = (coffee: Coffee) => {
+    setSaving(true)
+    navigate(`/coffee/${coffee.id}`, { replace: true })
+  }
+  const addNew = () => {
+    setDeclined(key)
+    setSheet(false)
   }
 
   if (!loaded) return null
@@ -83,10 +128,10 @@ export default function CoffeeForm() {
 
         <Section title="The essentials" hint="Enough to find it again">
           <Field label="Coffee name *">
-            <input className="input" name="coffeeName" autoComplete="off" required placeholder="e.g. Ethiopia Guji Hambela…" value={draft.name} onChange={(e) => set('name', e.target.value)} />
+            <input className="input" name="coffeeName" autoComplete="off" required placeholder="e.g. Ethiopia Guji Hambela…" value={draft.name} onChange={(e) => set('name', e.target.value)} onBlur={() => setCheck(true)} />
           </Field>
           <Field label="Roaster *">
-            <input className="input" name="roaster" autoComplete="off" required list="roasters" placeholder="e.g. Onyx Coffee Lab…" value={draft.roaster} onChange={(e) => set('roaster', e.target.value)} />
+            <input className="input" name="roaster" autoComplete="off" required list="roasters" placeholder="e.g. Onyx Coffee Lab…" value={draft.roaster} onChange={(e) => set('roaster', e.target.value)} onBlur={() => setCheck(true)} />
             <datalist id="roasters">{roasters?.map((r) => <option key={r} value={r} />)}</datalist>
           </Field>
           <Field label="Tasting notes" group>
@@ -151,10 +196,15 @@ export default function CoffeeForm() {
       </div>
 
       <div className="sticky bottom-0 -mx-4 mt-6 bg-gradient-to-t from-canvas from-60% px-4 pt-6 pb-[max(env(safe-area-inset-bottom),1rem)]">
+        {offer && !sheet && offered === key && <ReviewPill matches={matches} onClick={() => setSheet(true)} />}
         <button type="submit" disabled={saving} className="btn-primary w-full !py-3.5">
           {id ? 'Save changes' : 'Add coffee'}
         </button>
       </div>
+
+      {offer && sheet && (
+        <WelcomeBackSheet matches={matches} draft={draft} busy={saving} onRestock={(c) => void restock(c)} onOpen={open} onAddNew={addNew} onClose={() => setSheet(false)} />
+      )}
     </form>
   )
 }
