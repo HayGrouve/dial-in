@@ -39,6 +39,9 @@ export default function Home() {
   const finished = coffees.filter((c) => c.finished)
   // Finishing the last coffee empties the shelf; leave Manage so it doesn't come back switched on.
   if (managing && shelf.length === 0) setManaging(false)
+  // A short shelf fits on screen, so finishing from Up Next or the coffee page is enough. Once
+  // Manage is on, Done stays until you leave it, even if finishing drops the shelf below four.
+  const showManage = managing || shelf.length >= 4
 
   // The bag brewed most recently is the one you're most likely reaching for again.
   const lastBrew = brews.find((b) => shelf.some((c) => c.id === b.coffeeId))
@@ -118,9 +121,11 @@ export default function Home() {
               <div className="mb-4 flex items-center justify-between gap-4">
                 <h2 className="text-xl font-semibold tracking-tight">On the shelf</h2>
                 {/* 44px tall, pulled into the heading's line so the row keeps its height. */}
-                <button type="button" onClick={() => setManaging(!managing)} className={`-my-2 min-h-11 ${managing ? 'btn-primary' : 'btn-ghost'}`}>
-                  {managing ? 'Done' : 'Manage'}
-                </button>
+                {showManage && (
+                  <button type="button" onClick={() => setManaging(!managing)} className={`-my-2 min-h-11 ${managing ? 'btn-primary' : 'btn-ghost'}`}>
+                    {managing ? 'Done' : 'Manage'}
+                  </button>
+                )}
               </div>
               {managing ? (
                 <ul className="space-y-2">
