@@ -1,0 +1,12 @@
+/* PROTOTYPE, throwaway (#12): the welcome-back sheet rises from the bottom edge. */
+@media (prefers-reduced-motion: no-preference) {
+  .sheet-in {
+    animation: sheet-in 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+}
+@keyframes sheet-in {
+  from {
+    transform: translateY(40%);
+    opacity: 0;
+  }
+}

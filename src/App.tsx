@@ -1,4 +1,6 @@
 import { Link, Route, Switch } from 'wouter'
+import { ProtoToastHost } from './components/ProtoToast.prototype'
+import { PROTOTYPE } from './components/PrototypeSwitcher'
 import BrewForm from './pages/BrewForm'
 import CoffeeDetail from './pages/CoffeeDetail'
 import CoffeeForm from './pages/CoffeeForm'
@@ -25,6 +27,7 @@ export default function App() {
           </p>
         </Route>
       </Switch>
+      {PROTOTYPE && <ProtoToastHost />}
     </main>
   )
 }

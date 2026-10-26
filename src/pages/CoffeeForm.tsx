@@ -1,18 +1,29 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useState, type FormEvent } from 'react'
-import { useLocation, useParams } from 'wouter'
+import { useLocation, useParams, useSearch } from 'wouter'
 import { BagScanner } from '../components/BagScanner'
+import { PROTOTYPE, PrototypeSwitcher } from '../components/PrototypeSwitcher'
 import { Field, Header, Rating, Section, Segmented, TagInput } from '../components/ui'
 import { useLeaveGuard } from '../lib/a11y'
 import { db, newId, PROCESSES, ROAST_LEVELS, type Coffee } from '../lib/db'
 import { dotted } from '../lib/methods'
 import type { ScannedFields } from '../lib/scan'
+import CoffeeFormPrototype, { PROTO_VARIANTS, scanActions } from './CoffeeForm.prototype'
 
 type Draft = Omit<Coffee, 'id' | 'createdAt' | 'updatedAt'>
 
 const empty: Draft = { name: '', roaster: '', tastingNotes: [], finished: false }
 
 export default function CoffeeForm() {
+  const { id } = useParams<{ id?: string }>()
+  // PROTOTYPE (#12): `?variant=A|B|C` on New coffee swaps in a returning-coffee offer variant.
+  const search = new URLSearchParams(useSearch())
+  const variant = PROTOTYPE && !id ? PROTO_VARIANTS.find((v) => v.key === search.get('variant')) : undefined
+  if (variant) return <CoffeeFormPrototype key={variant.key} variant={variant.key} />
+  return <CoffeeFormToday />
+}
+
+function CoffeeFormToday() {
   const { id } = useParams<{ id?: string }>()
   const [, navigate] = useLocation()
   const [draft, setDraft] = useState<Draft>(empty)
@@ -155,6 +166,7 @@ export default function CoffeeForm() {
           {id ? 'Save changes' : 'Add coffee'}
         </button>
       </div>
+      {!id && <PrototypeSwitcher variants={[...PROTO_VARIANTS]} state="no offer today" actions={scanActions((p) => set('photo', p), applyScan)} actionsLabel="Scan:" />}
     </form>
   )
 }
