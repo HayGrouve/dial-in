@@ -11,7 +11,7 @@ export const PROCESSES = [
   'Experimental',
 ] as const
 
-export type BrewMethod = 'espresso' | 'pourover' | 'aeropress' | 'frenchpress' | 'moka' | 'coldbrew' | 'other'
+export type BrewMethod = 'espresso' | 'turbo' | 'pourover' | 'aeropress' | 'frenchpress' | 'moka' | 'coldbrew' | 'other'
 
 export type Taste = 'sour' | 'balanced' | 'bitter'
 
@@ -44,7 +44,7 @@ export interface Brew {
   grinder?: string
   grindSetting: string
   dose?: number
-  /** Espresso: beverage weight out. Other methods: water in. */
+  /** Espresso and turbo: beverage weight out. Other methods: water in. */
   yield?: number
   timeSec?: number
   preinfusion: boolean

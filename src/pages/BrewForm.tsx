@@ -158,7 +158,7 @@ export default function BrewForm() {
           {opusDial && <OpusDial value={draft.grindSetting} fallback={grindHint} onChange={(v) => set('grindSetting', v)} />}
         </Section>
 
-        <Section title="Recipe" hint={m.isEspresso ? 'Start around 1:2 in 25–30s' : `Start around 1:${m.defaultRatio}`}>
+        <Section title="Recipe" hint={`Start around 1:${m.defaultRatio}${m.shot ? ` in ${m.shot.range}` : ''}`}>
           <div className="grid grid-cols-3 gap-2">
             <Field label="Dose (g)">
               <input {...num('dose')} placeholder="18" />
@@ -167,7 +167,7 @@ export default function BrewForm() {
               <input {...num('yield')} placeholder={String(18 * m.defaultRatio)} />
             </Field>
             <Field label="Time (s)">
-              <input {...num('timeSec')} placeholder={m.isEspresso ? '28' : '180'} />
+              <input {...num('timeSec')} placeholder={String(m.shot?.typical ?? 180)} />
             </Field>
           </div>
           <p className="num text-sm text-muted">
