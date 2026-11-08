@@ -4,11 +4,11 @@ import { METHODS, METHOD_ORDER } from '../lib/methods'
 import { Check, Chevron } from './icons'
 
 /** Methods shown as chips; the rest live in the "More" menu. */
-const PRIMARY: BrewMethod[] = ['espresso', 'pourover']
+const PRIMARY: BrewMethod[] = ['espresso', 'turbo', 'pourover']
 const SECONDARY = METHOD_ORDER.filter((m) => !PRIMARY.includes(m))
 
 const chip = (active: boolean) =>
-  `flex items-center gap-1 rounded-full border px-4 py-2 text-sm font-medium transition ${
+  `flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-3 py-2 text-sm font-medium transition sm:px-4 ${
     active ? 'border-ink bg-ink text-canvas' : 'border-line text-muted hover:bg-tint hover:text-ink'
   }`
 
@@ -47,13 +47,16 @@ export function MethodPicker({ value, onChange }: { value: BrewMethod; onChange:
 
   return (
     <div className="mb-4 flex gap-1.5" role="group" aria-label="Brew method">
-      {PRIMARY.map((k) => (
-        <button key={k} type="button" aria-pressed={value === k} onClick={() => onChange(k)} className={chip(value === k)}>
-          {METHODS[k].label}
-        </button>
-      ))}
+      {/* Scrolls sideways on narrow phones instead of wrapping; More stays outside so its menu isn't clipped. */}
+      <div className="-m-1 flex min-w-0 gap-1.5 overflow-x-auto p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {PRIMARY.map((k) => (
+          <button key={k} type="button" aria-pressed={value === k} onClick={() => onChange(k)} className={chip(value === k)}>
+            {METHODS[k].label}
+          </button>
+        ))}
+      </div>
 
-      <div ref={ref} className="relative">
+      <div ref={ref} className="relative shrink-0">
         <button
           ref={trigger}
           type="button"

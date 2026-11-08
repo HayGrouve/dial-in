@@ -9,7 +9,7 @@ import { getApiKey, getGrinder, getOpusDial, setApiKey, setGrinder, setOpusDial 
 import { getThemePref, setThemePref, type ThemePref } from '../lib/theme'
 
 const CHEAT_SHEET = [
-  ['Start from a recipe', 'Espresso: 18g in → 36g out (1:2) in 25–30s. Pour over: 1:15–1:17.'],
+  ['Start from a recipe', 'Espresso: 18g in → 36g out (1:2) in 25–30s. Turbo: 18g in → 54g out (1:3) in 10–15s, ground coarser. Pour over: 1:15–1:17.'],
   ['Change one thing at a time', 'Hold dose and yield steady; move only the grind until time lands in range.'],
   ['Sour, thin, fast?', 'Under-extracted. Grind finer.'],
   ['Bitter, harsh, dry?', 'Over-extracted. Grind coarser.'],

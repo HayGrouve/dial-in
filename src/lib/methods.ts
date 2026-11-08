@@ -2,14 +2,18 @@ import type { Brew, BrewMethod, Taste } from './db'
 
 interface MethodInfo {
   label: string
-  /** Espresso measures beverage out; every other method measures water in. */
+  /** Shots from an espresso machine (espresso, turbo) measure beverage out; every other method measures water in. */
   isEspresso: boolean
   hasBloom: boolean
   defaultRatio: number
+  /** Machine shots only: the time range to aim for and a typical value. */
+  shot?: { range: string; typical: number }
 }
 
 export const METHODS: Record<BrewMethod, MethodInfo> = {
-  espresso: { label: 'Espresso', isEspresso: true, hasBloom: false, defaultRatio: 2 },
+  espresso: { label: 'Espresso', isEspresso: true, hasBloom: false, defaultRatio: 2, shot: { range: '25–30s', typical: 28 } },
+  // A turbo shot sits between espresso and filter: coarser grind, longer ratio, much faster shot.
+  turbo: { label: 'Turbo', isEspresso: true, hasBloom: false, defaultRatio: 3, shot: { range: '10–15s', typical: 12 } },
   pourover: { label: 'Pour over', isEspresso: false, hasBloom: true, defaultRatio: 16 },
   aeropress: { label: 'AeroPress', isEspresso: false, hasBloom: true, defaultRatio: 15 },
   frenchpress: { label: 'French press', isEspresso: false, hasBloom: false, defaultRatio: 15 },
@@ -49,6 +53,7 @@ export const dotted = (...parts: (string | number | false | null | undefined)[])
 /** Compact method tags for one-line setting summaries. */
 export const METHOD_SHORT: Record<BrewMethod, string> = {
   espresso: 'ESP',
+  turbo: 'TURBO',
   pourover: 'POUR',
   aeropress: 'AERO',
   frenchpress: 'PRESS',

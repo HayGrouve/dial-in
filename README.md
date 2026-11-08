@@ -6,7 +6,7 @@ A grind-size journal for specialty coffee. Snap the bag, log your shots, pin the
 
 - **Snap the label** — photograph the front and back of the bag and the details fill themselves in (name, roaster, origin, process, varietal, altitude, roast level, tasting notes, bag size). Gemini reads the label; add your Gemini API key in Settings → Label reading. Only empty fields are filled, so nothing you've typed is overwritten.
 - **Coffee bags** — photo (camera or library, auto-compressed), roaster, origin, region, producer, varietal, process, altitude, roast level, bag size, tasting notes, and a 1–5 star rating for the coffee (tap the stars on its page).
-- **Brews per method** — espresso, pour over, AeroPress, French press, moka pot, cold brew. Fields adapt to the method (yield vs water, pre-infusion for espresso, bloom for filter).
+- **Brews per method** — espresso, turbo, pour over, AeroPress, French press, moka pot, cold brew. Turbo sits between espresso and filter: a coarser, faster shot at around 1:3 in 10–15s. Fields adapt to the method (yield vs water, pre-infusion for espresso and turbo, bloom for filter).
 - **Your grinder, set once** in Settings → Equipment and stamped on every brew. **Any notation** — `14`, `2.5`, `1.5.2` (rotation.number.click), `24 clicks`.
 - **Fellow Opus dial (optional)** — turn on in Settings → Equipment. Adds a big grind wheel to the brew form that works out both the outer and inner ring, including the in-between sizes the inner ring unlocks (every 1/12 of a number). It remembers where your inner ring sits and moves it as little as possible. For the original Opus, not Opus 2.
 - **Dial-in log** — dose, yield, live brew ratio, time, temperature, taste (sour / balanced / bitter with a grind-finer/coarser hint), notes.
