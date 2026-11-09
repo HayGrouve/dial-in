@@ -1,5 +1,5 @@
 {
-  "name": "dial-in",
+  "name": "onova-za-kafeto",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -34,7 +34,6 @@
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
     "vite": "^8.3.0",
-    "vite-plugin-pwa": "^1.3.0",
     "vitest": "^5.1.0"
   }
 }

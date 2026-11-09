@@ -1,6 +1,6 @@
 import { db } from './db'
 
-const GRINDER_KEY = 'dial-in-grinder'
+const GRINDER_KEY = 'kafeto-grinder'
 
 /** The single grinder the user owns; stamped onto every new brew. */
 export function getGrinder() {
@@ -20,21 +20,8 @@ export async function migrateGrinder() {
   if (last?.grinder) setGrinder(last.grinder)
 }
 
-const API_KEY = 'dial-in-gemini-key'
-
-/** Gemini API key for reading bag labels. Stays on this device; never exported in backups. */
-export function getApiKey() {
-  return localStorage.getItem(API_KEY) ?? ''
-}
-
-export function setApiKey(key: string) {
-  const v = key.trim()
-  if (v) localStorage.setItem(API_KEY, v)
-  else localStorage.removeItem(API_KEY)
-}
-
-const OPUS_KEY = 'dial-in-opus-dial'
-const OPUS_INNER_KEY = 'dial-in-opus-inner'
+const OPUS_KEY = 'kafeto-opus-dial'
+const OPUS_INNER_KEY = 'kafeto-opus-inner'
 
 /** Opt-in Fellow Opus dial helper on the brew form. Off unless turned on in Settings. */
 export function getOpusDial() {

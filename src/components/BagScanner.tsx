@@ -1,7 +1,8 @@
+import { useAuth } from '@clerk/react'
 import { useRef, useState, type MouseEvent } from 'react'
 import { Link } from 'wouter'
 import { compressImage } from '../lib/image'
-import { getApiKey } from '../lib/prefs'
+import { getGeminiKey } from '../lib/gemini-key'
 import type { ScannedFields } from '../lib/scan'
 import { Camera, Close } from './icons'
 import { BagPhoto } from './ui'
@@ -36,14 +37,16 @@ export function BagScanner({
   const [busy, setBusy] = useState<Side>()
   const [status, setStatus] = useState<Status>({ kind: 'idle' })
   const run = useRef(0)
-  const hasKey = !!getApiKey()
+  const { userId } = useAuth()
+  const apiKey = getGeminiKey(userId)
+  const hasKey = !!apiKey
 
   const scan = async (photos: Blob[]) => {
     const id = ++run.current
     setStatus({ kind: 'reading' })
     try {
       const { scanBag } = await import('../lib/scan')
-      const fields = await scanBag(getApiKey(), photos)
+      const fields = await scanBag(apiKey, photos)
       if (id !== run.current) return
       onScanned(fields)
       const found = Object.values(fields).filter((v) => (Array.isArray(v) ? v.length : v != null)).length

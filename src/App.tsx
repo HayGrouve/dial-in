@@ -1,6 +1,8 @@
 import { useConvexAuth } from 'convex/react'
 import { Link, Route, Switch } from 'wouter'
+import ConnectionBanner from './components/ConnectionBanner'
 import Toast from './components/Toast'
+import { useGeminiKeyGuard } from './lib/session'
 import BrewForm from './pages/BrewForm'
 import CoffeeDetail from './pages/CoffeeDetail'
 import CoffeeForm from './pages/CoffeeForm'
@@ -9,6 +11,16 @@ import Settings from './pages/Settings'
 import Start from './pages/Start'
 
 export default function App() {
+  useGeminiKeyGuard()
+  return (
+    <>
+      <ConnectionBanner />
+      <Routes />
+    </>
+  )
+}
+
+function Routes() {
   // Convex's view, not Clerk's: signed in means the token has reached Convex.
   const { isLoading, isAuthenticated } = useConvexAuth()
   if (isLoading) return null

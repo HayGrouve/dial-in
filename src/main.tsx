@@ -12,6 +12,10 @@ import { initTheme } from './lib/theme'
 initTheme()
 void migrateGrinder()
 
+// Online only: Кафето never registers a service worker. If this origin still has
+// Dial In's (an old preview), drop it so it cannot keep serving a stale shell.
+void navigator.serviceWorker?.getRegistrations().then((all) => all.forEach((r) => void r.unregister()))
+
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL)
 const { signInUrl, signUpUrl } = clerkUrls(import.meta.env)
 

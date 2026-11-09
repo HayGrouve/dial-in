@@ -63,7 +63,7 @@ export default function Home() {
     <>
       <header className="flex items-center justify-between pt-[max(env(safe-area-inset-top),1rem)] pb-4">
         <h1 className="text-lg font-semibold tracking-tight" translate="no">
-          Dial In
+          Онова за кафето
         </h1>
         <div className="-mr-2 flex items-center gap-1">
           <Link href="/settings" className="rounded-full p-2.5 text-muted hover:bg-surface hover:text-ink" aria-label="Settings">
