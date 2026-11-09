@@ -1,3 +1,5 @@
+> **This is the `kafeto` branch: Онова за кафето in progress.** It moves Dial In onto the shared онова за Акаунт, with the log in Convex ([#27](https://github.com/HayGrouve/dial-in/issues/27)). `main` stays the live Dial In on dial-in-three.vercel.app until the single cutover merge. Every Кафето PR targets `kafeto`, never `main`.
+
 # Dial In ☕
 
 A grind-size journal for specialty coffee. Snap the bag, log your shots, pin the setting that tastes right. When you buy that coffee again months later, the number is waiting.
@@ -23,7 +25,12 @@ A grind-size journal for specialty coffee. Snap the bag, log your shots, pin the
 pnpm install
 pnpm dev      # http://localhost:5173
 pnpm build    # typecheck + production build to dist/
+pnpm typecheck  # app and convex/
+pnpm test     # Convex function tests (convex-test)
+npx convex dev --once  # push convex/ to the dev deployment (onova-za-kafeto, EU)
 ```
+
+`.env.local` (git-ignored) holds `CONVEX_DEPLOYMENT`, `VITE_CONVEX_URL` and the dev `VITE_CLERK_PUBLISHABLE_KEY` of the "онова за" Clerk app. On Vercel, `scripts/vercel-build.sh` deploys Convex only for Production; previews build the app against the dev deployment.
 
 ## Deploy to Vercel
 
