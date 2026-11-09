@@ -1,3 +1,4 @@
+import { useConvexAuth } from 'convex/react'
 import { Link, Route, Switch } from 'wouter'
 import Toast from './components/Toast'
 import BrewForm from './pages/BrewForm'
@@ -5,8 +6,21 @@ import CoffeeDetail from './pages/CoffeeDetail'
 import CoffeeForm from './pages/CoffeeForm'
 import Home from './pages/Home'
 import Settings from './pages/Settings'
+import Start from './pages/Start'
 
 export default function App() {
+  // Convex's view, not Clerk's: signed in means the token has reached Convex.
+  const { isLoading, isAuthenticated } = useConvexAuth()
+  if (isLoading) return null
+  // Signed out, every route shows the start page in place, so Влез comes back to it.
+  if (!isAuthenticated) {
+    return (
+      <main className="mx-auto max-w-3xl px-4 pb-[env(safe-area-inset-bottom)]">
+        <Start />
+      </main>
+    )
+  }
+
   return (
     <>
       <main className="mx-auto max-w-3xl px-4 pb-[max(env(safe-area-inset-bottom),2rem)]">
