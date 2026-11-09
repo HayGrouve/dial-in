@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { fmtInner, fmtOuter, fmtSize, formatOpus, OPUS_MAX, OPUS_MIN, opusMicrons, opusPosition, parseOpus, toTwelfths } from '../lib/opus'
-import { getOpusInner, setOpusInner } from '../lib/prefs'
+import { useEquipment, useSetEquipment } from '../lib/equipment'
 
 const TICK = 14
 const clamp = (t: number) => Math.min(OPUS_MAX, Math.max(OPUS_MIN, t))
@@ -13,7 +13,9 @@ export function OpusDial({ value, fallback, onChange }: { value: string; fallbac
   const ruler = useRef<HTMLDivElement>(null)
   /** Size we jumped to because it was typed in the field; that scroll must not rewrite the field. */
   const typedTo = useRef<number>(undefined)
-  const [home, setHome] = useState(getOpusInner)
+  // Where the inner ring sits, kept in `equipment` so every device knows. The brew form waits for it.
+  const home = useEquipment()?.opusInner ?? 0
+  const setEquipment = useSetEquipment()
   const [size, setSize] = useState(() => {
     const start = parseOpus(value) ?? parseOpus(fallback)
     return start ? toTwelfths(start) : 72
@@ -122,10 +124,7 @@ export function OpusDial({ value, fallback, onChange }: { value: string; fallbac
           <button
             type="button"
             className="btn-ghost shrink-0 !px-3 !py-1.5"
-            onClick={() => {
-              setOpusInner(pos.inner)
-              setHome(pos.inner)
-            }}
+            onClick={() => void setEquipment({ opusInner: pos.inner })}
           >
             Done
           </button>

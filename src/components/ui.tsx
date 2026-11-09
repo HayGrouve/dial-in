@@ -189,18 +189,9 @@ export function TagInput({ value, onChange, placeholder, label }: { value: strin
   )
 }
 
-export function BagPhoto({ blob, className = '', iconSize = 36, alt = 'Coffee bag' }: { blob?: Blob; className?: string; iconSize?: number; alt?: string }) {
-  const img = useRef<HTMLImageElement>(null)
-
-  // Object URLs are an external resource: create per blob, revoke on change/unmount.
-  useEffect(() => {
-    if (!blob || !img.current) return
-    const url = URL.createObjectURL(blob)
-    img.current.src = url
-    return () => URL.revokeObjectURL(url)
-  }, [blob])
-
-  if (blob) return <img ref={img} alt={alt} className={`object-cover ${className}`} />
+/** A bag photo from its URL: `photoUrl` from Convex. */
+export function BagPhoto({ src, className = '', iconSize = 36, alt = 'Coffee bag' }: { src?: string; className?: string; iconSize?: number; alt?: string }) {
+  if (src) return <img src={src} alt={alt} className={`object-cover ${className}`} />
   return (
     <div className={`grid place-items-center bg-[radial-gradient(circle_at_30%_20%,color-mix(in_oklab,var(--accent)_14%,var(--tint)),var(--tint)_70%)] text-muted/50 ${className}`}>
       <Bean width={iconSize} height={iconSize} />
@@ -208,8 +199,30 @@ export function BagPhoto({ blob, className = '', iconSize = 36, alt = 'Coffee ba
   )
 }
 
+/** While a query resolves: a quiet pulse instead of an empty page. */
+export function Loading() {
+  return (
+    <div role="status" className="grid place-items-center py-24">
+      <span className="sr-only">Зарежда се…</span>
+      <span aria-hidden className="size-8 rounded-full border-2 border-line border-t-accent motion-safe:animate-spin" />
+    </div>
+  )
+}
+
+/** An unknown route, or an id that is malformed, deleted or someone else's. */
+export function NotFound() {
+  return (
+    <p className="py-20 text-center text-muted">
+      Nothing brewing here.{' '}
+      <Link href="/" className="font-semibold text-accent-fg underline">
+        Back to the shelf
+      </Link>
+    </p>
+  )
+}
+
 /** Full-screen view of a bag photo; tap anywhere to close. */
-export function PhotoViewer({ blob, alt, onClose }: { blob: Blob; alt?: string; onClose: () => void }) {
+export function PhotoViewer({ src, alt, onClose }: { src: string; alt?: string; onClose: () => void }) {
   const close = useRef<HTMLButtonElement>(null)
 
   // Modal: focus the close button, lock page scroll, and hand focus back on the way out.
@@ -238,7 +251,7 @@ export function PhotoViewer({ blob, alt, onClose }: { blob: Blob; alt?: string; 
       onClick={onClose}
       className="fixed inset-0 z-50 grid place-items-center overscroll-contain bg-black/85 p-4 backdrop-blur-sm"
     >
-      <BagPhoto blob={blob} alt={alt} className="max-h-full max-w-full rounded-[20px] !object-contain" />
+      <BagPhoto src={src} alt={alt} className="max-h-full max-w-full rounded-[20px] !object-contain" />
       <button
         ref={close}
         type="button"
