@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Link, useLocation, useSearch } from 'wouter'
+import AccountMenu from '../components/AccountMenu'
 import { BagPhoto } from '../components/ui'
 import { Bean, Chevron, Gear, Plus, Search } from '../components/icons'
 import { db, type Brew, type Coffee } from '../lib/db'
@@ -64,9 +65,12 @@ export default function Home() {
         <h1 className="text-lg font-semibold tracking-tight" translate="no">
           Dial In
         </h1>
-        <Link href="/settings" className="-mr-2 rounded-full p-2.5 text-muted hover:bg-surface hover:text-ink" aria-label="Settings">
-          <Gear />
-        </Link>
+        <div className="-mr-2 flex items-center gap-1">
+          <Link href="/settings" className="rounded-full p-2.5 text-muted hover:bg-surface hover:text-ink" aria-label="Settings">
+            <Gear />
+          </Link>
+          <AccountMenu />
+        </div>
       </header>
 
       {coffees.length === 0 && <EmptyState />}
