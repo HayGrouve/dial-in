@@ -28,19 +28,19 @@ export function findMatches(coffees: Coffee[], draft: Pick<Coffee, 'name' | 'roa
   return coffees.filter((c) => matchKey(c) === key).sort((a, b) => b.updatedAt - a.updatedAt)
 }
 
-/** Details a new bag can fill in, labelled as they read in a sentence, in form order. */
+/** Details a new bag can fill in, labelled as they read in a sentence ("Попълва държавата"), in form order. */
 const DETAILS = {
-  origin: 'country',
-  region: 'region',
-  process: 'process',
-  varietal: 'varietal',
-  producer: 'producer',
-  altitude: 'altitude',
-  roastLevel: 'roast level',
-  bagWeight: 'bag size',
-  tastingNotes: 'tasting notes',
-  rating: 'rating',
-  notes: 'notes',
+  origin: 'държавата',
+  region: 'региона',
+  process: 'обработката',
+  varietal: 'сорта',
+  producer: 'производителя',
+  altitude: 'височината',
+  roastLevel: 'изпичането',
+  bagWeight: 'размера на пакета',
+  tastingNotes: 'вкусовите нотки',
+  rating: 'оценката',
+  notes: 'бележките',
 } as const satisfies Partial<Record<keyof Coffee, string>>
 
 const isEmpty = (v: unknown) => v == null || v === '' || (Array.isArray(v) && v.length === 0)

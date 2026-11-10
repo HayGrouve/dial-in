@@ -64,7 +64,7 @@ function Body({ toast }: { toast: ToastData }) {
         <span className="font-semibold">{toast.lead}</span> {toast.name}
       </p>
       <button type="button" onClick={undo} className="btn shrink-0 bg-accent !px-4 !py-2 text-on-accent hover:brightness-105">
-        Undo
+        Отмени
       </button>
     </div>
   )

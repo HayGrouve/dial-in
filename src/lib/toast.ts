@@ -20,7 +20,7 @@ const undoWith =
 /** An action that just happened, with a way to take it back. */
 export interface Toast {
   id: number
-  /** What happened, set apart from the coffee name: "Finished", "Back on the shelf:". */
+  /** What happened, set apart from the coffee name: "Свърши:", "Пак на рафта:". */
   lead: string
   name: string
   undo: Undo
@@ -57,7 +57,7 @@ export function useToast() {
 /** Finishes a coffee and offers to undo it. */
 export async function finishWithUndo(coffee: Pick<Coffee, '_id' | 'name'>) {
   const replaced = await convex.mutation(api.coffees.finish, { id: coffee._id })
-  showToast({ lead: 'Finished', name: coffee.name, undo: undoWith(replaced) })
+  showToast({ lead: 'Свърши:', name: coffee.name, undo: undoWith(replaced) })
 }
 
 /**
@@ -66,7 +66,7 @@ export async function finishWithUndo(coffee: Pick<Coffee, '_id' | 'name'>) {
  */
 export async function restockWithUndo(coffee: Pick<Coffee, '_id' | 'name'>, changes?: RestockChanges) {
   const replaced = await convex.mutation(api.coffees.restock, { id: coffee._id, changes })
-  showToast({ lead: 'Back on the shelf:', name: coffee.name, undo: undoWith(replaced) })
+  showToast({ lead: 'Пак на рафта:', name: coffee.name, undo: undoWith(replaced) })
 }
 
 /**
