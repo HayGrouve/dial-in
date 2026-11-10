@@ -45,7 +45,8 @@ export function Section({
   const heading = (
     <div className="min-w-0 flex-1">
       <h2 className="text-lg leading-tight font-semibold tracking-tight">{title}</h2>
-      {sub && <p className="mt-0.5 truncate text-sm text-muted">{sub}</p>}
+      {/* Two lines, so short copy on a narrow phone wraps instead of losing its last word. */}
+      {sub && <p className="mt-0.5 line-clamp-2 text-sm text-muted">{sub}</p>}
     </div>
   )
 
