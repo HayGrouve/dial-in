@@ -10,6 +10,10 @@ import { initTheme } from './lib/theme'
 
 initTheme()
 
+// Online only: Кафето never registers a service worker. If this origin still has
+// Dial In's (an old preview), drop it so it cannot keep serving a stale shell.
+void navigator.serviceWorker?.getRegistrations().then((all) => all.forEach((r) => void r.unregister()))
+
 const { signInUrl, signUpUrl } = clerkUrls(import.meta.env)
 
 createRoot(document.getElementById('root')!).render(

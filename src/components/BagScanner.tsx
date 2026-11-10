@@ -1,7 +1,8 @@
+import { useAuth } from '@clerk/react'
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { Link } from 'wouter'
 import { compressImage } from '../lib/image'
-import { getApiKey } from '../lib/prefs'
+import { getGeminiKey } from '../lib/gemini-key'
 import type { ScannedFields } from '../lib/scan'
 import { Camera, Close } from './icons'
 import { BagPhoto } from './ui'
@@ -37,7 +38,9 @@ export function BagScanner({
   const [busy, setBusy] = useState<Side>()
   const [status, setStatus] = useState<Status>({ kind: 'idle' })
   const run = useRef(0)
-  const hasKey = !!getApiKey()
+  const { userId } = useAuth()
+  const apiKey = getGeminiKey(userId)
+  const hasKey = !!apiKey
 
   const scan = async (photos: (Blob | string)[]) => {
     const id = ++run.current
@@ -46,7 +49,7 @@ export function BagScanner({
       const { scanBag } = await import('../lib/scan')
       // The stored front photo on Edit coffee is a URL; Gemini needs its bytes.
       const blobs = await Promise.all(photos.map(async (p) => (typeof p === 'string' ? (await fetch(p)).blob() : p)))
-      const fields = await scanBag(getApiKey(), blobs)
+      const fields = await scanBag(apiKey, blobs)
       if (id !== run.current) return
       onScanned(fields)
       const found = Object.values(fields).filter((v) => (Array.isArray(v) ? v.length : v != null)).length

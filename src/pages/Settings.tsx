@@ -1,3 +1,4 @@
+import { useAuth } from '@clerk/react'
 import { useQuery } from 'convex/react'
 import { useState } from 'react'
 import { api } from '../../convex/_generated/api'
@@ -5,7 +6,7 @@ import { Moon, Monitor, Sun } from '../components/icons'
 import { Field, Header, Loading, Section, Toggle } from '../components/ui'
 import { arrowKeys } from '../lib/a11y'
 import { useEquipment, useSetEquipment } from '../lib/equipment'
-import { getApiKey, setApiKey } from '../lib/prefs'
+import { getGeminiKey, setGeminiKey } from '../lib/gemini-key'
 import { getThemePref, setThemePref, type ThemePref } from '../lib/theme'
 
 const CHEAT_SHEET = [
@@ -31,7 +32,14 @@ export default function Settings() {
   const [theme, setTheme] = useState(getThemePref)
   // What is typed in the grinder field; Convex trims it, so the field keeps its own copy while you type.
   const [grinder, setGrinderDraft] = useState<string>()
-  const [apiKey, setApiKeyDraft] = useState(getApiKey)
+  const { userId } = useAuth()
+  const [apiKey, setApiKeyDraft] = useState(() => getGeminiKey(userId))
+  // Someone else signed in from another tab or the hub: their field starts empty.
+  const [keyFor, setKeyFor] = useState(userId)
+  if (keyFor !== userId) {
+    setKeyFor(userId)
+    setApiKeyDraft(getGeminiKey(userId))
+  }
 
   if (!equipment) {
     return (
@@ -112,12 +120,15 @@ export default function Settings() {
               value={apiKey}
               onChange={(e) => {
                 setApiKeyDraft(e.target.value)
-                setApiKey(e.target.value)
+                setGeminiKey(e.target.value, userId)
               }}
             />
           </Field>
+          <p lang="bg" className="text-sm text-ink">
+            Ключът остава само на това устройство. Изход го изтрива.
+          </p>
           <p className="text-sm text-muted">
-            Bag photos are sent to Google Gemini to read the label. The key stays on this device and is not included in backups. Get one at{' '}
+            Bag photos are sent to Google Gemini to read the label. The key is not included in backups. Get one at{' '}
             <a className="font-semibold text-accent-fg underline" href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">
               Google AI Studio
             </a>
