@@ -10,7 +10,7 @@ import { Field, Header, Loading, NotFound, Section, Segmented, Toggle } from '..
 import { useLeaveGuard } from '../lib/a11y'
 import { brewFieldsOf, type BrewFields, type BrewMethod, type Taste } from '../lib/db'
 import { useEquipment } from '../lib/equipment'
-import { dotted, METHODS, ratio, TASTES } from '../lib/methods'
+import { dotted, formatTime, METHODS, ratio, TASTES } from '../lib/methods'
 
 type Draft = BrewFields
 
@@ -35,7 +35,7 @@ function fromPrefill({ method, same, other }: NonNullable<FunctionReturnType<typ
 export default function BrewForm() {
   const { id: coffeeId, brewId } = useParams<{ id: string; brewId?: string }>()
   const [, navigate] = useLocation()
-  // "Log an espresso" on the coffee page opens the form on that method.
+  // "Запиши еспресо" on the coffee page opens the form on that method.
   const asked = new URLSearchParams(useSearch()).get('method')
   const startMethod = asked && asked in METHODS ? (asked as BrewMethod) : undefined
   const convex = useConvex()
@@ -120,7 +120,7 @@ export default function BrewForm() {
   }
 
   const remove = async () => {
-    if (!editing || !confirm('Delete this brew?')) return
+    if (!editing || !confirm('Да изтрия това варене?')) return
     setSaving(true)
     await removeBrew({ id: editing.id })
     navigate(`/coffee/${coffeeId}`, { replace: true })
@@ -128,11 +128,11 @@ export default function BrewForm() {
 
   const r = ratio(draft.dose, draft.yield)
   const extras = dotted(
-    m.isEspresso && draft.preinfusion && `Pre-infusion${draft.preinfusionSec ? ` ${draft.preinfusionSec}s` : ''}`,
-    m.hasBloom && draft.bloomSec && `Bloom ${draft.bloomSec}s`,
+    m.isEspresso && draft.preinfusion && `Преинфузия${draft.preinfusionSec ? ` ${formatTime(draft.preinfusionSec)}` : ''}`,
+    m.hasBloom && draft.bloomSec && `Цъфтеж ${formatTime(draft.bloomSec)}`,
     draft.temperature && `${draft.temperature}°C`,
   )
-  const extrasTitle = m.isEspresso ? 'Pre-infusion & temperature' : m.hasBloom ? 'Bloom & temperature' : 'Temperature'
+  const extrasTitle = m.isEspresso ? 'Преинфузия и температура' : m.hasBloom ? 'Цъфтеж и температура' : 'Температура'
 
   return (
     <form onSubmit={save} className="pb-8">
@@ -141,7 +141,7 @@ export default function BrewForm() {
         onBack={guard}
         title={
           <span className="block min-w-0">
-            <span className="block truncate">{brewId ? 'Edit brew' : 'Log a brew'}</span>
+            <span className="block truncate">{brewId ? 'Промени варенето' : 'Запиши варене'}</span>
             <span className="block truncate font-sans text-xs font-normal text-muted">{coffee.name}, {coffee.roaster}</span>
           </span>
         }
@@ -151,13 +151,13 @@ export default function BrewForm() {
 
       <div className="space-y-4">
         <Section
-          title="Grind setting"
+          title="Смилане"
           hint={
             grinder ? (
-              <>On {editing?.grinder || grinder}{grindHint && ` · last ${m.label.toLowerCase()} on another coffee: ${grindHint}`}</>
+              <>На {editing?.grinder || grinder}{grindHint && ` · за ${m.noun} на друго кафе: ${grindHint}`}</>
             ) : (
               <>
-                <Link href="/settings" onClick={guard} className="font-medium text-accent-fg underline underline-offset-2">Set your grinder</Link> once in Settings
+                <Link href="/settings" onClick={guard} className="font-medium text-accent-fg underline underline-offset-2">Задай мелачката си</Link> веднъж в Настройки
               </>
             )
           }
@@ -165,7 +165,7 @@ export default function BrewForm() {
           <div>
             <input
               className="input num h-20 !py-0 text-center font-mono !text-4xl font-semibold text-accent-fg"
-              aria-label="Grind setting"
+              aria-label="Смилане"
               name="grindSetting"
               autoComplete="off"
               required
@@ -175,48 +175,48 @@ export default function BrewForm() {
               value={draft.grindSetting}
               onChange={(e) => set('grindSetting', e.target.value)}
             />
-            <p className="mt-1.5 text-xs text-muted">Any notation — 14, 2.5, 1.5.2, 22 clicks</p>
+            <p className="mt-1.5 text-xs text-muted">Както го пише мелачката: 14, 2.5, 1.5.2, 22 щраквания</p>
           </div>
           {opusDial && <OpusDial value={draft.grindSetting} fallback={grindHint} onChange={(v) => set('grindSetting', v)} />}
         </Section>
 
-        <Section title="Recipe" hint={`Start around 1:${m.defaultRatio}${m.shot ? ` in ${m.shot.range}` : ''}`}>
+        <Section title="Рецепта" hint={`Започни около 1:${m.defaultRatio}${m.shot ? ` за ${m.shot.range}` : ''}`}>
           <div className="grid grid-cols-3 gap-2">
-            <Field label="Dose (g)">
+            <Field label="Доза (г)">
               <input {...num('dose')} placeholder="18" />
             </Field>
-            <Field label={m.isEspresso ? 'Out (g)' : 'Water (g)'}>
+            <Field label={m.isEspresso ? 'Напитка (г)' : 'Вода (г)'}>
               <input {...num('yield')} placeholder={String(18 * m.defaultRatio)} />
             </Field>
-            <Field label="Time (s)">
+            <Field label="Време (с)">
               <input {...num('timeSec')} placeholder={String(m.shot?.typical ?? 180)} />
             </Field>
           </div>
           <p className="num text-sm text-muted">
-            Ratio <span className="font-semibold text-ink">{r ?? '—'}</span>
+            Съотношение <span className="font-semibold text-ink">{r ?? '·'}</span>
           </p>
         </Section>
 
-        <Section title={extrasTitle} summary={extras || 'Optional'} collapsible defaultOpen={!!extras}>
-          {m.isEspresso && <Toggle checked={draft.preinfusion} onChange={(v) => set('preinfusion', v)} label="Pre-infusion" />}
+        <Section title={extrasTitle} summary={extras || 'По желание'} collapsible defaultOpen={!!extras}>
+          {m.isEspresso && <Toggle checked={draft.preinfusion} onChange={(v) => set('preinfusion', v)} label="Преинфузия" />}
           <div className="grid grid-cols-2 gap-3">
             {m.isEspresso && draft.preinfusion && (
-              <Field label="Pre-infusion (s)">
+              <Field label="Преинфузия (с)">
                 <input {...num('preinfusionSec')} placeholder="8" />
               </Field>
             )}
             {m.hasBloom && (
-              <Field label="Bloom (s)">
+              <Field label="Цъфтеж (с)">
                 <input {...num('bloomSec')} placeholder="45" />
               </Field>
             )}
-            <Field label="Water temp (°C)">
+            <Field label="Температура (°C)">
               <input {...num('temperature')} placeholder={m.isEspresso ? '93' : '96'} />
             </Field>
           </div>
         </Section>
 
-        <Section title="Tasting" hint="How did it come out?">
+        <Section title="Вкус" hint="Как излезе?">
           <div>
             <Segmented<Taste>
               value={draft.taste}
@@ -229,8 +229,8 @@ export default function BrewForm() {
             />
             {draft.taste && <p className="mt-2 text-sm text-muted">{TASTES[draft.taste].hint}</p>}
           </div>
-          <Field label="Notes">
-            <textarea className="input min-h-16" name="notes" placeholder="Channeling? Milk drink? Next time…" value={draft.notes ?? ''} onChange={(e) => set('notes', e.target.value || undefined)} />
+          <Field label="Бележки">
+            <textarea className="input min-h-16" name="notes" placeholder="Канали? С мляко? Следващия път…" value={draft.notes ?? ''} onChange={(e) => set('notes', e.target.value || undefined)} />
           </Field>
         </Section>
 
@@ -240,8 +240,8 @@ export default function BrewForm() {
             onChange={(v) => set('dialedIn', v)}
             label={
               <span>
-                <span className="block font-semibold">This is the one</span>
-                <span className="text-sm text-muted">Pin as your {m.label.toLowerCase()} setting</span>
+                <span className="block font-semibold">Това е то</span>
+                <span className="text-sm text-muted">Закачи като настройката си за {m.noun}</span>
               </span>
             }
           />
@@ -256,11 +256,11 @@ export default function BrewForm() {
         )}
         {editing && (
           <button type="button" className="btn-ghost !text-bitter" onClick={remove}>
-            Delete
+            Изтрий
           </button>
         )}
         <button type="submit" disabled={saving} className="btn-primary flex-1 !py-3.5">
-          {brewId ? 'Save' : 'Save brew'}
+          {brewId ? 'Запази' : 'Запази варенето'}
         </button>
       </div>
     </form>

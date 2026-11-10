@@ -12,7 +12,7 @@ export async function compressImage(file: Blob, maxSize = 1280, quality = 0.82):
   canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
   bitmap.close()
   return new Promise((resolve, reject) =>
-    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Could not encode image'))), 'image/jpeg', quality),
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Снимката не се обработи.'))), 'image/jpeg', quality),
   )
 }
 
@@ -20,7 +20,7 @@ export async function compressImage(file: Blob, maxSize = 1280, quality = 0.82):
 export async function uploadPhoto(photo: Blob): Promise<Id<'_storage'>> {
   const url = await convex.mutation(api.files.generateUploadUrl, {})
   const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': photo.type || 'image/jpeg' }, body: photo })
-  if (!res.ok) throw new Error(`Photo upload failed: ${res.status}`)
+  if (!res.ok) throw new Error(`Снимката не се качи (${res.status}).`)
   const { storageId } = (await res.json()) as { storageId: Id<'_storage'> }
   return storageId
 }

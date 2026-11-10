@@ -3,7 +3,7 @@ import { useSignIn } from '../lib/session'
 
 /**
  * What you see signed out, on any route: no redirect, so Влез brings you back
- * to the page you opened. Seeded from Home's empty state; copy refined in #34.
+ * to the page you opened. Seeded from Home's empty state.
  */
 export default function Start() {
   const signIn = useSignIn()

@@ -5,11 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "node scripts/check-dashes.mjs && tsc -b && vite build",
     "typecheck": "tsc -b && tsc --noEmit -p convex",
     "lint": "oxlint",
     "test": "vitest run",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check:dashes": "node scripts/check-dashes.mjs"
   },
   "dependencies": {
     "@clerk/react": "^6.18.6",

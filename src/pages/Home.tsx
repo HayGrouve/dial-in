@@ -6,7 +6,8 @@ import AccountMenu from '../components/AccountMenu'
 import { BagPhoto } from '../components/ui'
 import { Bean, Chevron, Gear, Plus, Search } from '../components/icons'
 import type { Brew, Coffee } from '../lib/db'
-import { formatTime, METHODS, METHOD_SHORT, nextMove, relativeDay, settingsFor } from '../lib/methods'
+import { count } from '../lib/count'
+import { formatTime, grams, logLabel, METHODS, METHOD_SHORT, nextMove, relativeDay, settingsFor } from '../lib/methods'
 import { finishWithUndo, restockWithUndo, toastAnchor } from '../lib/toast'
 
 // Stretches a link over its whole row, so the row opens the coffee everywhere except its button
@@ -41,7 +42,7 @@ export default function Home() {
         Онова за кафето
       </h1>
       <div className="-mr-2 flex items-center gap-1">
-        <Link href="/settings" className="rounded-full p-2.5 text-muted hover:bg-surface hover:text-ink" aria-label="Settings">
+        <Link href="/settings" className="rounded-full p-2.5 text-muted hover:bg-surface hover:text-ink" aria-label="Настройки">
           <Gear />
         </Link>
         <AccountMenu />
@@ -95,8 +96,8 @@ export default function Home() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search roaster, origin, notes…"
-            aria-label="Search coffees"
+            placeholder="Търси пекарна, произход, нотки…"
+            aria-label="Търси кафе"
             name="q"
             autoComplete="off"
             className="input !rounded-full !bg-surface !pl-11"
@@ -108,7 +109,7 @@ export default function Home() {
       {q ? (
         <section className="pb-28">
           {results.length === 0 ? (
-            <p className="py-16 text-center text-muted">No coffees match that search.</p>
+            <p className="py-16 text-center text-muted">Няма кафе, което да отговаря на търсенето.</p>
           ) : (
             <ul className="space-y-1">
               {results.map((c) => (
@@ -117,7 +118,7 @@ export default function Home() {
                     <BagPhoto src={c.photoUrl} alt="" className="aspect-[4/5] w-12 shrink-0 rounded-xl" iconSize={18} />
                     <div className="min-w-0 flex-1">
                       <div className="truncate font-medium">{c.name}</div>
-                      <div className="truncate text-sm text-muted">{c.finished ? `${c.roaster}, finished` : c.roaster}</div>
+                      <div className="truncate text-sm text-muted">{c.finished ? `${c.roaster}, свършено` : c.roaster}</div>
                       {/* A finished coffee's pill takes the trailing edge, so its settings move under the name. */}
                       {c.finished && <SettingsLine brews={brewsOf(c._id)} />}
                     </div>
@@ -137,11 +138,11 @@ export default function Home() {
           {shelf.length > 0 && (
             <section className={upNext ? 'mt-10' : ''}>
               <div className="mb-4 flex items-center justify-between gap-4">
-                <h2 className="text-xl font-semibold tracking-tight">On the shelf</h2>
+                <h2 className="text-xl font-semibold tracking-tight">На рафта</h2>
                 {/* 44px tall, pulled into the heading's line so the row keeps its height. */}
                 {showManage && (
                   <button type="button" onClick={() => setManaging(!managing)} className={`-my-2 min-h-11 ${managing ? 'btn-primary' : 'btn-ghost'}`}>
-                    {managing ? 'Done' : 'Manage'}
+                    {managing ? 'Готово' : 'Подреди'}
                   </button>
                 )}
               </div>
@@ -160,12 +161,12 @@ export default function Home() {
           )}
 
           {coffees.length > 0 && shelf.length === 0 && (
-            <p className="rounded-[28px] bg-surface px-6 py-10 text-center text-muted">Shelf is empty. Time to buy beans.</p>
+            <p className="rounded-[28px] bg-surface px-6 py-10 text-center text-muted">Рафтът е празен. Време е за ново кафе.</p>
           )}
 
           {dialing.length > 0 && (
             <section className="mt-10">
-              <h2 className="mb-4 text-xl font-semibold tracking-tight">Still dialing</h2>
+              <h2 className="mb-4 text-xl font-semibold tracking-tight">Още настройваш</h2>
               <div className="space-y-2">
                 {dialing.map((c) => (
                   <DialingRow key={c._id} coffee={c} last={brewsOf(c._id)[0]} />
@@ -183,9 +184,9 @@ export default function Home() {
                   aria-expanded={showFinished}
                   className="group flex w-full items-center justify-between rounded-full py-2 text-left"
                 >
-                  Finished
+                  Свършени
                   <span className="flex items-center gap-1 text-sm font-normal tracking-normal text-muted transition group-hover:text-ink">
-                    {finished.length} {finished.length === 1 ? 'bag' : 'bags'}
+                    {count(finished.length, 'пакет', 'пакета')}
                     <Chevron width={16} height={16} className={`transition-transform ${showFinished ? 'rotate-180' : ''}`} />
                   </span>
                 </button>
@@ -219,7 +220,7 @@ export default function Home() {
           href="/coffee/new"
           className="btn fixed right-[max(1rem,calc(50vw-24rem+1rem))] bottom-[max(env(safe-area-inset-bottom),1rem)] z-30 bg-ink !px-5 !py-3.5 text-canvas hover:bg-ink/90 shadow-[0_12px_32px_-12px_rgb(6_14_11/0.6)]"
         >
-          <Plus width={18} height={18} /> New coffee
+          <Plus width={18} height={18} /> Ново кафе
         </Link>
       )}
     </>
@@ -234,30 +235,30 @@ function UpNext({ coffee, brews, last }: { coffee: Coffee; brews: Brew[]; last: 
       <Link href={`/coffee/${coffee._id}`} className="flex gap-4">
         <BagPhoto src={coffee.photoUrl} alt="" className="aspect-[4/5] w-24 shrink-0 rounded-[20px]" iconSize={28} />
         <div className="min-w-0 py-1">
-          <p className="text-sm text-muted">Brewed {relativeDay(last.createdAt).toLowerCase()}</p>
+          <p className="text-sm text-muted">Варено {relativeDay(last.createdAt)}</p>
           <h2 className="mt-1 text-2xl leading-tight font-semibold tracking-tight break-words">{coffee.name}</h2>
           <p className="mt-1 truncate text-sm text-muted">{coffee.roaster}</p>
         </div>
       </Link>
       <div className="mt-5 flex items-end justify-between gap-4 px-1">
         <div className="min-w-0">
-          <div className="text-sm text-muted">{setting.dialedIn ? m.label : `${m.label}, still dialing`}</div>
+          <div className="text-sm text-muted">{setting.dialedIn ? m.label : `${m.label}, още настройваш`}</div>
           <div className={`truncate font-mono leading-none font-semibold tracking-tighter text-accent-fg ${setting.grindSetting.length > 6 ? 'text-4xl' : 'text-[56px]'}`}>
-            {setting.grindSetting || '—'}
+            {setting.grindSetting || '·'}
           </div>
         </div>
         <p className="shrink-0 pb-1 text-right font-mono text-sm leading-relaxed text-muted">
-          {setting.dose != null && <>{setting.dose}g in<br /></>}
-          {setting.yield != null && <>{setting.yield}g {m.isEspresso ? 'out' : 'water'}<br /></>}
+          {setting.dose != null && <>{grams(setting.dose)} кафе<br /></>}
+          {setting.yield != null && <>{grams(setting.yield)} {m.isEspresso ? 'напитка' : 'вода'}<br /></>}
           {formatTime(setting.timeSec)}
         </p>
       </div>
       <div className="mt-5 flex gap-2">
         <Link href={`/coffee/${coffee._id}/brew/new?method=${setting.method}`} className="btn-primary min-w-0 flex-1 !px-4 !py-3.5 !text-base">
-          <Plus width={18} height={18} className="shrink-0" /> <span className="truncate">Log another {m.label.toLowerCase()}</span>
+          <Plus width={18} height={18} className="shrink-0" /> <span className="truncate">{logLabel(setting.method)}</span>
         </Link>
-        <button type="button" onClick={() => finishWithUndo(coffee)} className="btn-ghost shrink-0 !px-4" aria-label={`Finish bag of ${coffee.name}`}>
-          Finish bag
+        <button type="button" onClick={() => finishWithUndo(coffee)} className="btn-ghost shrink-0 !px-4" aria-label={`Пакетът свърши: ${coffee.name}`}>
+          Свърши
         </button>
       </div>
     </section>
@@ -314,8 +315,8 @@ function ManageRow({ coffee }: { coffee: Coffee }) {
           <div className="truncate text-sm text-muted">{coffee.roaster}</div>
         </div>
       </Link>
-      <button type="button" onClick={() => finishWithUndo(coffee)} className="btn-ghost relative min-h-11 shrink-0" aria-label={`Finish ${coffee.name}`}>
-        Finish
+      <button type="button" onClick={() => finishWithUndo(coffee)} className="btn-ghost relative min-h-11 shrink-0" aria-label={`Свърши: ${coffee.name}`}>
+        Свърши
       </button>
     </div>
   )
@@ -324,8 +325,8 @@ function ManageRow({ coffee }: { coffee: Coffee }) {
 /** Restocks a finished coffee in place: the toast confirms it, and the page stays where it is. */
 function BoughtItAgain({ coffee }: { coffee: Coffee }) {
   return (
-    <button type="button" onClick={() => restockWithUndo(coffee)} className="btn-ghost relative min-h-11 shrink-0 !px-4" aria-label={`Bought it again: ${coffee.name}`}>
-      Bought it again
+    <button type="button" onClick={() => restockWithUndo(coffee)} className="btn-ghost relative min-h-11 shrink-0 !px-4" aria-label={`Купих го пак: ${coffee.name}`}>
+      Купих го пак
     </button>
   )
 }
@@ -343,7 +344,7 @@ function DialingRow({ coffee, last }: { coffee: Coffee; last: Brew }) {
             </>
           ) : (
             <>
-              Last tried at <span className="font-mono text-ink">{last.grindSetting}</span>. Pin it when it tastes right.
+              Последно на <span className="font-mono text-ink">{last.grindSetting}</span>. Закачи го, когато стане вкусно.
             </>
           )}
         </p>
@@ -355,7 +356,7 @@ function DialingRow({ coffee, last }: { coffee: Coffee; last: Brew }) {
 
 function SettingsLine({ brews }: { brews: Brew[] }) {
   const pinned = settingsFor(brews).filter((s) => !s.provisional)
-  if (pinned.length === 0) return <span className="shrink-0 text-sm text-muted">{brews.length ? 'Dialing in' : 'Not brewed yet'}</span>
+  if (pinned.length === 0) return <span className="shrink-0 text-sm text-muted">{brews.length ? 'Настройваш' : 'Още не е варено'}</span>
   return (
     <span className="flex shrink-0 flex-wrap gap-x-3 font-mono text-sm">
       {pinned.map(({ brew }) => (
@@ -392,12 +393,12 @@ function EmptyState() {
       <div className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-full bg-accent/15 text-accent-fg">
         <Bean width={30} height={30} />
       </div>
-      <h2 className="text-2xl font-semibold tracking-tight">Your grind memory starts here</h2>
+      <h2 className="text-2xl font-semibold tracking-tight">Тук започва паметта ти за смилане</h2>
       <p className="mx-auto mt-2 max-w-sm text-muted">
-        Snap the bag, log your shots, and pin the setting that tastes right. Next time you buy it again, the number is waiting.
+        Снимай пакета, записвай варенията и закачи смилането, което е вкусно. Когато купиш същото кафе пак, числото те чака.
       </p>
       <Link href="/coffee/new" className="btn-primary mt-6 !px-6 !py-3">
-        <Plus width={18} height={18} /> Add your first coffee
+        <Plus width={18} height={18} /> Добави първото си кафе
       </Link>
     </div>
   )

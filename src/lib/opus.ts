@@ -1,9 +1,9 @@
 /**
  * Fellow Opus (first generation) grind math.
  *
- * The outer ring runs 1–11 in quarter steps. Each inner-ring notch shifts the whole
+ * The outer ring runs 1 to 11 in quarter steps. Each inner-ring notch shifts the whole
  * outer scale by 1/6 of a number (+ coarser, − finer), up to 6 notches either way.
- * Together they reach every 1/12 of a number from 0 to 12 — including the "hidden"
+ * Together they reach every 1/12 of a number from 0 to 12, including the "hidden"
  * sizes between the outer ring's quarter marks.
  *
  * Grind sizes are kept as integer twelfths so the math stays exact.
@@ -14,7 +14,7 @@ export const OPUS_MAX = 144
 export const INNER_LIMIT = 6
 
 export interface OpusPosition {
-  /** Outer ring setting, 1–11 in quarter steps. */
+  /** Outer ring setting, 1 to 11 in quarter steps. */
   outer: number
   /** Inner ring notch, −6…+6. */
   inner: number
@@ -57,5 +57,5 @@ export const toTwelfths = ({ outer, inner }: OpusPosition) => outer * 12 + 2 * i
 const MICRONS_AT_1 = 230
 const MICRONS_PER_TWELFTH = (1160 - 230) / 120
 
-/** Approximate particle size for a grind size, rounded to 5 µm — the spec is only that precise. */
+/** Approximate particle size for a grind size, rounded to 5 µm: the spec is only that precise. */
 export const opusMicrons = (twelfths: number) => Math.round((MICRONS_AT_1 + (twelfths - 12) * MICRONS_PER_TWELFTH) / 5) * 5
