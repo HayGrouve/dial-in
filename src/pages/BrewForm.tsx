@@ -1,30 +1,30 @@
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useConvex, useMutation, useQuery } from 'convex/react'
+import type { FunctionReturnType } from 'convex/server'
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useLocation, useParams, useSearch } from 'wouter'
+import { api } from '../../convex/_generated/api'
+import type { Id } from '../../convex/_generated/dataModel'
 import { MethodPicker } from '../components/MethodPicker'
 import { OpusDial } from '../components/OpusDial'
-import { Field, Header, Section, Segmented, Toggle } from '../components/ui'
+import { Field, Header, Loading, NotFound, Section, Segmented, Toggle } from '../components/ui'
 import { useLeaveGuard } from '../lib/a11y'
-import { db, newId, setDialedIn, type Brew, type BrewMethod, type Taste } from '../lib/db'
+import { brewFieldsOf, type BrewFields, type BrewMethod, type Taste } from '../lib/db'
+import { useEquipment } from '../lib/equipment'
 import { dotted, METHODS, ratio, TASTES } from '../lib/methods'
-import { getGrinder, getOpusDial } from '../lib/prefs'
 
-type Draft = Omit<Brew, 'id' | 'coffeeId' | 'createdAt'>
+type Draft = BrewFields
 
 const blank = (method: BrewMethod): Draft => ({ method, grindSetting: '', preinfusion: false, dialedIn: false })
 
 /**
- * Starting values for a new brew: the previous attempt on this coffee if there is one,
- * otherwise the equipment-side settings from the last coffee brewed this way.
+ * Starting values for a new brew from `brews.prefill`: the previous attempt on this coffee if there
+ * is one, otherwise the equipment-side settings from the last coffee brewed this way.
  */
-async function prefill(coffeeId: string, method: BrewMethod): Promise<{ draft: Draft; hint?: string }> {
-  const recent = await db.brews.where('method').equals(method).reverse().sortBy('createdAt')
-  const same = recent.find((b) => b.coffeeId === coffeeId)
+function fromPrefill({ method, same, other }: NonNullable<FunctionReturnType<typeof api.brews.prefill>>): { draft: Draft; hint?: string } {
   if (same) {
     const { grindSetting, dose, yield: y, timeSec, preinfusion, preinfusionSec, temperature, bloomSec } = same
     return { draft: { ...blank(method), grindSetting, dose, yield: y, timeSec, preinfusion, preinfusionSec, temperature, bloomSec } }
   }
-  const other = recent[0]
   if (other) {
     const { dose, yield: y, preinfusion, preinfusionSec, temperature, bloomSec } = other
     return { draft: { ...blank(method), dose, yield: y, preinfusion, preinfusionSec, temperature, bloomSec }, hint: other.grindSetting }
@@ -38,31 +38,47 @@ export default function BrewForm() {
   // "Log an espresso" on the coffee page opens the form on that method.
   const asked = new URLSearchParams(useSearch()).get('method')
   const startMethod = asked && asked in METHODS ? (asked as BrewMethod) : undefined
-  const coffee = useLiveQuery(() => db.coffees.get(coffeeId), [coffeeId])
-  const grinder = getGrinder()
-  const opusDial = getOpusDial()
+  const convex = useConvex()
+  const coffee = useQuery(api.coffees.get, { id: coffeeId })
+  const equipment = useEquipment()
+  const saveBrew = useMutation(api.brews.save)
+  const removeBrew = useMutation(api.brews.remove)
   const [draft, setDraft] = useState<Draft>()
+  // Editing: the brew as loaded (null when the id is unknown), for its id and the grinder it was logged on.
+  const [editing, setEditing] = useState<{ id: Id<'brews'>; grinder?: string } | null>()
   const [grindHint, setGrindHint] = useState<string>()
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [failed, setFailed] = useState(false)
   const guard = useLeaveGuard(dirty && !saving)
 
+  // Read once, not live: the form owns the values from here on.
   useEffect(() => {
+    let live = true
     if (brewId) {
-      void db.brews.get(brewId).then((b) => b && setDraft(b))
-      return
+      void convex.query(api.brews.get, { id: brewId }).then((b) => {
+        if (!live) return
+        if (!b || b.coffeeId !== coffeeId) return setEditing(null)
+        setEditing({ id: b._id, grinder: b.grinder })
+        setDraft(brewFieldsOf(b))
+      })
+    } else {
+      void convex.query(api.brews.prefill, { coffeeId, method: startMethod }).then((p) => {
+        if (!live || !p) return
+        const { draft, hint } = fromPrefill(p)
+        setDraft(draft)
+        setGrindHint(hint)
+      })
     }
-    void (async () => {
-      const last = await db.brews.where('coffeeId').equals(coffeeId).reverse().sortBy('createdAt')
-      const lastAny = last[0] ?? (await db.brews.orderBy('createdAt').last())
-      const p = await prefill(coffeeId, startMethod ?? lastAny?.method ?? 'espresso')
-      setDraft(p.draft)
-      setGrindHint(p.hint)
-    })()
-  }, [coffeeId, brewId, startMethod])
+    return () => {
+      live = false
+    }
+  }, [convex, coffeeId, brewId, startMethod])
 
-  if (!draft || !coffee) return null
+  if (coffee === null || editing === null) return <NotFound />
+  if (!draft || !coffee || !equipment) return <Loading />
 
+  const { grinder, opusDial } = equipment
   const m = METHODS[draft.method]
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => {
     setDirty(true)
@@ -80,27 +96,33 @@ export default function BrewForm() {
   })
 
   const changeMethod = async (method: BrewMethod) => {
-    if (brewId) return set('method', method)
+    if (editing) return set('method', method)
     setDirty(true)
-    const p = await prefill(coffeeId, method)
-    setDraft({ ...p.draft, taste: draft.taste, notes: draft.notes })
-    setGrindHint(p.hint)
+    const p = await convex.query(api.brews.prefill, { coffeeId, method })
+    if (!p) return
+    const next = fromPrefill(p)
+    setDraft({ ...next.draft, taste: draft.taste, notes: draft.notes })
+    setGrindHint(next.hint)
   }
 
+  // The grinder is stamped by Convex on a new brew; an edited brew keeps its own.
   const save = async (e: FormEvent) => {
     e.preventDefault()
     setSaving(true)
-    const brew: Brew = brewId
-      ? { ...(draft as Brew) }
-      : { ...draft, grinder: grinder || undefined, id: newId(), coffeeId, createdAt: Date.now() }
-    await db.brews.put(brew)
-    await setDialedIn(brew, brew.dialedIn)
-    navigate(`/coffee/${coffeeId}`, { replace: true })
+    setFailed(false)
+    try {
+      await saveBrew({ ...draft, id: editing?.id, coffeeId: coffee._id })
+      navigate(`/coffee/${coffeeId}`, { replace: true })
+    } catch {
+      setSaving(false)
+      setFailed(true)
+    }
   }
 
   const remove = async () => {
-    if (!brewId || !confirm('Delete this brew?')) return
-    await db.brews.delete(brewId)
+    if (!editing || !confirm('Delete this brew?')) return
+    setSaving(true)
+    await removeBrew({ id: editing.id })
     navigate(`/coffee/${coffeeId}`, { replace: true })
   }
 
@@ -132,7 +154,7 @@ export default function BrewForm() {
           title="Grind setting"
           hint={
             grinder ? (
-              <>On {brewId && draft.grinder ? draft.grinder : grinder}{grindHint && ` · last ${m.label.toLowerCase()} on another coffee: ${grindHint}`}</>
+              <>On {editing?.grinder || grinder}{grindHint && ` · last ${m.label.toLowerCase()} on another coffee: ${grindHint}`}</>
             ) : (
               <>
                 <Link href="/settings" onClick={guard} className="font-medium text-accent-fg underline underline-offset-2">Set your grinder</Link> once in Settings
@@ -226,8 +248,13 @@ export default function BrewForm() {
         </div>
       </div>
 
-      <div className="sticky bottom-0 -mx-4 mt-6 flex gap-2 bg-gradient-to-t from-canvas from-60% px-4 pt-6 pb-[max(env(safe-area-inset-bottom),1rem)]">
-        {brewId && (
+      <div className="sticky bottom-0 -mx-4 mt-6 flex flex-wrap gap-2 bg-gradient-to-t from-canvas from-60% px-4 pt-6 pb-[max(env(safe-area-inset-bottom),1rem)]">
+        {failed && (
+          <p role="alert" className="w-full text-center text-sm font-medium text-bitter">
+            Не се запази. Провери връзката и опитай пак.
+          </p>
+        )}
+        {editing && (
           <button type="button" className="btn-ghost !text-bitter" onClick={remove}>
             Delete
           </button>

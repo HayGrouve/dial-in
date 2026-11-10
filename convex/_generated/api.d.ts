@@ -8,8 +8,15 @@
  * @module
  */
 
+import type * as brews from "../brews.js";
+import type * as coffees from "../coffees.js";
+import type * as crons from "../crons.js";
+import type * as data from "../data.js";
+import type * as equipment from "../equipment.js";
+import type * as files from "../files.js";
 import type * as lib_auth from "../lib/auth.js";
-import type * as me from "../me.js";
+import type * as lib_fields from "../lib/fields.js";
+import type * as lib_photos from "../lib/photos.js";
 
 import type {
   ApiFromModules,
@@ -18,8 +25,15 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  brews: typeof brews;
+  coffees: typeof coffees;
+  crons: typeof crons;
+  data: typeof data;
+  equipment: typeof equipment;
+  files: typeof files;
   "lib/auth": typeof lib_auth;
-  me: typeof me;
+  "lib/fields": typeof lib_fields;
+  "lib/photos": typeof lib_photos;
 }>;
 
 /**

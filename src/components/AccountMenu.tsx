@@ -1,7 +1,5 @@
 import { useUser } from '@clerk/react'
-import { useQuery } from 'convex/react'
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
-import { api } from '../../convex/_generated/api'
 import { useSignOut } from '../lib/session'
 
 const AKAUNT = 'https://onovaza.com/akaunt'
@@ -14,8 +12,6 @@ const AKAUNT = 'https://onovaza.com/akaunt'
  */
 export default function AccountMenu() {
   const { user } = useUser()
-  // The token reaching Convex (#29); stays until #31 reads the log from Convex.
-  const subject = useQuery(api.me.subject)
   const signOut = useSignOut()
   const [open, setOpen] = useState(false)
   const root = useRef<HTMLDivElement>(null)
@@ -76,7 +72,7 @@ export default function AccountMenu() {
   const initial = name.charAt(0).toUpperCase() || '?'
 
   return (
-    <div ref={root} className="relative" data-subject={subject}>
+    <div ref={root} className="relative">
       <button
         ref={button}
         type="button"

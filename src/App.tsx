@@ -1,6 +1,7 @@
 import { useConvexAuth } from 'convex/react'
-import { Link, Route, Switch } from 'wouter'
+import { Route, Switch } from 'wouter'
 import Toast from './components/Toast'
+import { NotFound } from './components/ui'
 import BrewForm from './pages/BrewForm'
 import CoffeeDetail from './pages/CoffeeDetail'
 import CoffeeForm from './pages/CoffeeForm'
@@ -32,14 +33,7 @@ export default function App() {
           <Route path="/coffee/:id/brew/new" component={BrewForm} />
           <Route path="/coffee/:id/brew/:brewId" component={BrewForm} />
           <Route path="/coffee/:id" component={CoffeeDetail} />
-          <Route>
-            <p className="py-20 text-center text-muted">
-              Nothing brewing here.{' '}
-              <Link href="/" className="font-semibold text-accent-fg underline">
-                Back to the shelf
-              </Link>
-            </p>
-          </Route>
+          <Route component={NotFound} />
         </Switch>
       </main>
       <Toast />

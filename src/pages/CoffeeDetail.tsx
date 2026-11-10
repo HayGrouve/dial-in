@@ -1,16 +1,34 @@
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useMutation, useQuery } from 'convex/react'
 import { useState } from 'react'
 import { Link, useLocation, useParams, useSearch } from 'wouter'
+import { api } from '../../convex/_generated/api'
 import { Back, Check, Pin, Plus, Trash } from '../components/icons'
-import { BagPhoto, PhotoViewer, Rating } from '../components/ui'
+import { BagPhoto, Loading, NotFound, PhotoViewer, Rating } from '../components/ui'
 import { arrowKeys } from '../lib/a11y'
-import { db, deleteCoffee, setDialedIn, type Brew, type BrewMethod, type Coffee } from '../lib/db'
+import type { Brew, BrewMethod, Coffee } from '../lib/db'
 import { formatTime, logLabel, METHODS, nextMove, ratio, relativeDay, settingsFor } from '../lib/methods'
 import { finishWithUndo, restockWithUndo, toastAnchor } from '../lib/toast'
 
 const TASTE_WORD = { sour: 'Sour', balanced: 'Balanced', bitter: 'Bitter' } as const
 /** The status row's button: Finish bag on the shelf, Log a brew once finished. */
 const STATUS_ACTION = 'btn shrink-0 border border-line bg-surface !px-4 !py-2 text-ink hover:bg-canvas'
+
+type PinBrew = (brew: Brew, value: boolean) => void
+
+/** Pins a brew as the setting for its method; the pin moves at once, before Convex confirms it. */
+function usePin(coffeeId: string): PinBrew {
+  const setDialedIn = useMutation(api.brews.setDialedIn).withOptimisticUpdate((store, { id, value }) => {
+    const brews = store.getQuery(api.brews.byCoffee, { coffeeId })
+    const target = brews?.find((b) => b._id === id)
+    if (!brews || !target) return
+    store.setQuery(
+      api.brews.byCoffee,
+      { coffeeId },
+      brews.map((b) => (b._id === id ? { ...b, dialedIn: value } : value && b.method === target.method ? { ...b, dialedIn: false } : b)),
+    )
+  })
+  return (brew, value) => void setDialedIn({ id: brew._id, value })
+}
 
 export default function CoffeeDetail() {
   const { id } = useParams<{ id: string }>()
@@ -19,22 +37,30 @@ export default function CoffeeDetail() {
   // The method tab lives in the URL so back-navigation and links land on the same tab.
   const picked = new URLSearchParams(useSearch()).get('method') as BrewMethod | null
   const pick = (method: BrewMethod) => navigate(`/coffee/${id}?method=${method}`, { replace: true })
-  const coffee = useLiveQuery(() => db.coffees.get(id), [id])
-  const brews = useLiveQuery(() => db.brews.where('coffeeId').equals(id).reverse().sortBy('createdAt'), [id])
+  const coffee = useQuery(api.coffees.get, { id })
+  const brews = useQuery(api.brews.byCoffee, { coffeeId: id })
+  const pin = usePin(id)
+  const rateCoffee = useMutation(api.coffees.rate).withOptimisticUpdate((store, { rating }) => {
+    const current = store.getQuery(api.coffees.get, { id })
+    if (current) store.setQuery(api.coffees.get, { id }, { ...current, rating })
+  })
+  const removeCoffee = useMutation(api.coffees.remove)
 
-  if (coffee === undefined || brews === undefined) return null
-  if (!coffee) return <p className="py-20 text-center text-muted">Coffee not found.</p>
+  // A malformed, deleted or someone else's id reads as null.
+  if (coffee === null) return <NotFound />
+  if (coffee === undefined || brews === undefined) return <Loading />
 
   const settings = settingsFor(brews)
   const current = settings.find((s) => s.brew.method === picked) ?? settings[0]
 
   const { finished } = coffee
   const logHref = `/coffee/${id}/brew/new${current ? `?method=${current.brew.method}` : ''}`
-  const rate = (rating: number | undefined) => db.coffees.update(id, { rating, updatedAt: Date.now() })
-  const remove = async () => {
+  const rate = (rating: number | undefined) => void rateCoffee({ id: coffee._id, rating })
+  const remove = () => {
     if (!confirm(`Delete “${coffee.name}” and all ${brews.length} ${brews.length === 1 ? 'brew' : 'brews'}?`)) return
-    await deleteCoffee(id)
+    // Off the page first, so it never shows the deleted coffee as not found.
     navigate('/', { replace: true })
+    void removeCoffee({ id: coffee._id })
   }
 
   return (
@@ -43,12 +69,12 @@ export default function CoffeeDetail() {
       <div className="relative -mx-4 sm:mx-0 sm:mt-4 sm:overflow-hidden sm:rounded-t-[28px]">
         <button
           type="button"
-          onClick={() => coffee.photo && setViewing(true)}
-          disabled={!coffee.photo}
-          aria-label={coffee.photo ? 'View bag photo' : undefined}
+          onClick={() => coffee.photoUrl && setViewing(true)}
+          disabled={!coffee.photoUrl}
+          aria-label={coffee.photoUrl ? 'View bag photo' : undefined}
           className="block w-full"
         >
-          <BagPhoto blob={coffee.photo} alt={`Bag of ${coffee.name}`} className="h-[min(48dvh,420px)] w-full" iconSize={56} />
+          <BagPhoto src={coffee.photoUrl} alt={`Bag of ${coffee.name}`} className="h-[min(48dvh,420px)] w-full" iconSize={56} />
         </button>
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-canvas/40 via-transparent via-35% to-canvas to-85%" />
         <div className="absolute inset-x-0 top-0 flex items-center justify-between px-4 pt-[max(env(safe-area-inset-top),0.75rem)]">
@@ -115,14 +141,14 @@ export default function CoffeeDetail() {
             )}
 
             <div {...(settings.length > 1 ? { role: 'tabpanel', id: 'method-panel', 'aria-labelledby': `tab-${current.brew.method}` } : {})}>
-              <SettingCard key={current.brew.method} brew={current.brew} provisional={current.provisional} tries={current.tries} finished={finished} />
+              <SettingCard key={current.brew.method} brew={current.brew} provisional={current.provisional} tries={current.tries} finished={finished} pin={pin} />
 
               {current.tries.length > 1 && (
                 <section className="mt-8">
                   <h2 className="mb-4 text-xl font-semibold tracking-tight">How you got here</h2>
                   <ol className="relative ml-2 border-l border-line">
                     {current.tries.map((b) => (
-                      <TryRow key={b.id} brew={b} />
+                      <TryRow key={b._id} brew={b} pin={pin} />
                     ))}
                   </ol>
                 </section>
@@ -160,13 +186,13 @@ export default function CoffeeDetail() {
         )}
       </div>
 
-      {viewing && coffee.photo && <PhotoViewer blob={coffee.photo} alt={`Bag of ${coffee.name}`} onClose={() => setViewing(false)} />}
+      {viewing && coffee.photoUrl && <PhotoViewer src={coffee.photoUrl} alt={`Bag of ${coffee.name}`} onClose={() => setViewing(false)} />}
     </>
   )
 }
 
 /** The number to come back to, the recipe around it, and what to do next. */
-function SettingCard({ brew, provisional, tries, finished }: { brew: Brew; provisional: boolean; tries: Brew[]; finished: boolean }) {
+function SettingCard({ brew, provisional, tries, finished, pin }: { brew: Brew; provisional: boolean; tries: Brew[]; finished: boolean; pin: PinBrew }) {
   const m = METHODS[brew.method]
   const latest = tries[0]
   const move = latest.taste && nextMove(latest.taste)
@@ -187,7 +213,7 @@ function SettingCard({ brew, provisional, tries, finished }: { brew: Brew; provi
 
   return (
     <section className="rise card mt-6 p-5">
-      <Link href={`/coffee/${brew.coffeeId}/brew/${brew.id}`} className="block">
+      <Link href={`/coffee/${brew.coffeeId}/brew/${brew._id}`} className="block">
         <div className="flex items-center justify-between gap-3 text-sm text-muted">
           {/* A finished bag's unpinned setting is where the next bag picks up, not still in progress. */}
           <span>{provisional ? (finished ? 'Where you left off' : 'Still dialing') : 'Your setting'}</span>
@@ -228,7 +254,7 @@ function SettingCard({ brew, provisional, tries, finished }: { brew: Brew; provi
           )}
         </p>
         {provisional && !move && (
-          <button type="button" onClick={() => setDialedIn(latest, true)} className="btn shrink-0 bg-ink !px-4 !py-2 text-canvas">
+          <button type="button" onClick={() => pin(latest, true)} className="btn shrink-0 bg-ink !px-4 !py-2 text-canvas">
             <Pin width={16} height={16} /> Pin
           </button>
         )}
@@ -237,7 +263,7 @@ function SettingCard({ brew, provisional, tries, finished }: { brew: Brew; provi
   )
 }
 
-function TryRow({ brew: b }: { brew: Brew }) {
+function TryRow({ brew: b, pin }: { brew: Brew; pin: PinBrew }) {
   return (
     <li className="relative pb-5 pl-6 last:pb-0">
       <span
@@ -245,7 +271,7 @@ function TryRow({ brew: b }: { brew: Brew }) {
         aria-hidden
       />
       <div className="flex items-start gap-2">
-        <Link href={`/coffee/${b.coffeeId}/brew/${b.id}`} className="min-w-0 flex-1">
+        <Link href={`/coffee/${b.coffeeId}/brew/${b._id}`} className="min-w-0 flex-1">
           <div className="flex items-baseline gap-3">
             <span className="font-mono text-lg font-semibold">{b.grindSetting}</span>
             <span className="text-sm">{b.taste ? TASTE_WORD[b.taste] : 'No verdict'}</span>
@@ -258,7 +284,7 @@ function TryRow({ brew: b }: { brew: Brew }) {
         </Link>
         <button
           type="button"
-          onClick={() => setDialedIn(b, !b.dialedIn)}
+          onClick={() => pin(b, !b.dialedIn)}
           className={`-mt-1 rounded-full p-2 transition ${b.dialedIn ? 'text-accent-fg' : 'text-muted/60 hover:bg-surface hover:text-ink'}`}
           aria-label="Pin as dialed-in setting"
           aria-pressed={b.dialedIn}
