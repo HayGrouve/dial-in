@@ -2,8 +2,9 @@
 import { convexTest } from 'convex-test'
 import { Webhook } from 'standardwebhooks'
 import { afterEach, describe, expect, test, vi } from 'vitest'
-import { api } from './_generated/api'
+import { api, internal } from './_generated/api'
 import type { Id } from './_generated/dataModel'
+import { SWEEP_MARGIN_MS } from './files'
 import schema from './schema'
 
 // Данни on the server: the import's writes, Изтрий данните and `user.deleted`.
@@ -69,7 +70,8 @@ describe('import', () => {
     expect(await them.query(api.import.existing, {})).toEqual({ coffees: [], brews: [] })
   })
 
-  test('coffees: a second run adds nothing and deletes the photo uploaded for it', async () => {
+  test('coffees: a second run adds nothing; the photo uploaded for it is left to the sweep', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
     const { t, me } = setup()
     const first = await store(t, 'first')
     const run1 = await me.mutation(api.import.coffees, { coffees: [{ ...coffeeRow('a'), photo: first }, coffeeRow('b')] })
@@ -78,9 +80,37 @@ describe('import', () => {
     const again = await store(t, 'again')
     const run2 = await me.mutation(api.import.coffees, { coffees: [{ ...coffeeRow('a'), photo: again }, coffeeRow('b')] })
     expect(run2).toEqual({ ids: run1.ids, added: 0 })
+    expect(await fileExists(t, again)).toBe(true)
+    expect(await me.query(api.data.counts, {})).toEqual({ coffees: 2, brews: 0 })
+
+    vi.setSystemTime(Date.now() + SWEEP_MARGIN_MS + 1)
+    await t.mutation(internal.files.sweep, {})
     expect(await fileExists(t, again)).toBe(false)
     expect(await fileExists(t, first)).toBe(true)
-    expect(await me.query(api.data.counts, {})).toEqual({ coffees: 2, brews: 0 })
+  })
+
+  test("someone else's unattached or released file survives an import that names it", async () => {
+    const { t, me, them } = setup()
+    // Mine: an upload not attached yet, and a photo a restock let go of (inside the Undo window).
+    const unattached = await store(t, 'my fresh upload')
+    const old = await store(t, 'my old bag')
+    const mine = await me.mutation(api.coffees.create, { name: 'Mine', roaster: 'Onyx', tastingNotes: [], photo: old })
+    await me.mutation(api.coffees.restock, { id: mine, changes: { photo: await store(t, 'my new bag') } })
+
+    // They import a coffee they already have, naming my files as its photo: nothing is deleted.
+    await them.mutation(api.import.coffees, { coffees: [coffeeRow('theirs')] })
+    for (const photo of [unattached, old]) {
+      expect(await them.mutation(api.import.coffees, { coffees: [{ ...coffeeRow('theirs'), photo }] })).toMatchObject({ added: 0 })
+    }
+    expect(await fileExists(t, unattached)).toBe(true)
+    expect(await fileExists(t, old)).toBe(true)
+
+    // Nor can they put my released photo on a coffee of theirs, so their erase can't reach it either.
+    await expect(them.mutation(api.import.coffees, { coffees: [{ ...coffeeRow('new'), photo: old }] })).rejects.toThrow(/photoNotFound/)
+    await expect(them.mutation(api.coffees.create, { name: 'X', roaster: 'Y', tastingNotes: [], photo: old })).rejects.toThrow(/photoNotFound/)
+    // Undo still puts it back on mine.
+    await me.mutation(api.coffees.restore, { id: mine, set: { photo: old }, unset: [] })
+    expect(await me.query(api.coffees.get, { id: mine })).toMatchObject({ photo: old })
   })
 
   test('coffees keep the times from the file', async () => {
