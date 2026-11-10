@@ -18,6 +18,8 @@ export default defineSchema({
   })
     .index('by_owner_updatedAt', ['ownerSubject', 'updatedAt'])
     .index('by_owner_legacyId', ['ownerSubject', 'legacyId'])
+    /** Изтрий данните: your rows created before the erase started (`_creationTime` closes every index). */
+    .index('by_owner', ['ownerSubject'])
     /** Which coffee holds a file: the photo sweep and the check that a photo is yours. */
     .index('by_photo', ['photo']),
 
@@ -33,7 +35,8 @@ export default defineSchema({
     .index('by_owner_createdAt', ['ownerSubject', 'createdAt'])
     .index('by_owner_method_createdAt', ['ownerSubject', 'method', 'createdAt'])
     .index('by_coffee_method', ['coffeeId', 'method'])
-    .index('by_owner_legacyId', ['ownerSubject', 'legacyId']),
+    .index('by_owner_legacyId', ['ownerSubject', 'legacyId'])
+    .index('by_owner', ['ownerSubject']),
 
   /** One row per person: what used to be three localStorage keys. */
   equipment: defineTable({
@@ -52,7 +55,11 @@ export default defineSchema({
   releasedPhotos: defineTable({
     storageId: v.id('_storage'),
     releasedAt: v.number(),
-  }).index('by_storage', ['storageId']),
+    /** Whose coffee let go of it, so Изтрий данните deletes it too. Missing on rows from before #32. */
+    ownerSubject: v.optional(v.string()),
+  })
+    .index('by_storage', ['storageId'])
+    .index('by_owner', ['ownerSubject']),
 
   /** Svix ids of Clerk webhooks already handled, so a retry runs nothing twice. */
   processedWebhookEvents: defineTable({

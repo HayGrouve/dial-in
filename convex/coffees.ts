@@ -18,7 +18,7 @@ async function ownCoffee(ctx: MutationCtx, subject: string, id: Id<'coffees'>) {
   return coffee
 }
 
-function checkRating(rating: number | undefined) {
+export function checkRating(rating: number | undefined) {
   if (rating !== undefined && !(Number.isInteger(rating) && rating >= 1 && rating <= 5)) {
     throw new ConvexError({ code: 'badRating' })
   }
@@ -69,7 +69,7 @@ export const update = mutation({
     await assertPhotoUsable(ctx, subject, details.photo)
     const { ownerSubject, legacyId, finished, createdAt } = coffee
     await ctx.db.replace(id, { ownerSubject, legacyId, finished, createdAt, ...details, updatedAt: Date.now() })
-    await releasePhoto(ctx, coffee.photo, details.photo)
+    await releasePhoto(ctx, subject, coffee.photo, details.photo)
   },
 })
 
@@ -148,7 +148,7 @@ async function changeCoffee(ctx: MutationCtx, id: Id<'coffees'>, changes: Infer<
     else set[key] = before
   }
   await ctx.db.patch(id, next)
-  if ('photo' in next) await releasePhoto(ctx, coffee.photo, next.photo)
+  if ('photo' in next) await releasePhoto(ctx, subject, coffee.photo, next.photo)
   return { id, set: set as Restore['set'], unset }
 }
 
@@ -174,6 +174,6 @@ export const restore = mutation({
     await assertPhotoUsable(ctx, subject, set.photo)
     const cleared = Object.fromEntries(unset.map((key) => [key, undefined]))
     await ctx.db.patch(id, { ...set, ...cleared })
-    if ('photo' in set || unset.includes('photo')) await releasePhoto(ctx, coffee.photo, set.photo)
+    if ('photo' in set || unset.includes('photo')) await releasePhoto(ctx, subject, coffee.photo, set.photo)
   },
 })
