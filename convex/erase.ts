@@ -2,7 +2,7 @@ import { v } from 'convex/values'
 import { internal } from './_generated/api'
 import { internalMutation, mutation, type MutationCtx } from './_generated/server'
 import { requireSubject } from './lib/auth'
-import { deletePhotoIfUnheld } from './lib/photos'
+import { deletePhotoIfUnheld, releasedByOther } from './lib/photos'
 
 // Изтрий данните, and `user.deleted` from Clerk: everything Кафето holds about
 // one `subject` goes. There is no users table, so the erase works by
@@ -74,7 +74,8 @@ export const step = internalMutation({
       // An earlier row for the same file may have taken this one with it.
       if (!(await ctx.db.get(row._id))) continue
       await ctx.db.delete(row._id)
-      await deletePhotoIfUnheld(ctx, row.storageId)
+      // Never someone else's file: leave one another person also let go of to the sweep.
+      if (!(await releasedByOther(ctx, subject, row.storageId))) await deletePhotoIfUnheld(ctx, row.storageId)
     }
     if (released.length > 0) await again()
   },

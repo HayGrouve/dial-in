@@ -1,6 +1,6 @@
 import { ConvexError, v } from 'convex/values'
 import type { Doc, Id } from './_generated/dataModel'
-import { mutation, query, type MutationCtx, type QueryCtx } from './_generated/server'
+import { mutation, query, type QueryCtx } from './_generated/server'
 import { checkRating, readOwnCoffee } from './coffees'
 import { requireSubject } from './lib/auth'
 import { brewFields, coffeeDetails } from './lib/fields'
@@ -69,9 +69,11 @@ const importedCoffee = v.object({
 })
 
 /**
- * A batch of coffees (about 50). One you have already is skipped, and a photo
- * uploaded for it is deleted again. Returns every file id in the batch with
- * the `_id` it now has, and how many were added.
+ * A batch of coffees (about 50). One you have already is skipped; a photo the
+ * browser uploaded for it is left alone and the daily sweep (`files.sweep`)
+ * removes it, since a storage id from the caller proves nothing about whose
+ * file it is. Returns every file id in the batch with the `_id` it now has,
+ * and how many were added.
  */
 export const coffees = mutation({
   args: { coffees: v.array(importedCoffee) },
@@ -83,7 +85,6 @@ export const coffees = mutation({
       const found = await findCoffee(ctx, subject, legacyId)
       if (found) {
         ids.push([legacyId, found._id])
-        if (coffee.photo && coffee.photo !== found.photo) await deleteFreshUpload(ctx, coffee.photo)
         continue
       }
       checkRating(coffee.rating)
@@ -94,15 +95,6 @@ export const coffees = mutation({
     return { ids, added }
   },
 })
-
-/** Deletes a file no coffee holds: a photo the browser uploaded for a coffee that turned out to exist. */
-async function deleteFreshUpload(ctx: MutationCtx, photo: Id<'_storage'>) {
-  const holder = await ctx.db
-    .query('coffees')
-    .withIndex('by_photo', (q) => q.eq('photo', photo))
-    .first()
-  if (!holder && (await ctx.db.system.get(photo))) await ctx.storage.delete(photo)
-}
 
 /**
  * A batch of brews (about 200), `coffeeId` already mapped to yours. Skips a

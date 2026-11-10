@@ -10,7 +10,8 @@ export async function withPhotoUrl(ctx: QueryCtx, coffee: Doc<'coffees'>) {
 
 /**
  * A photo may go on your coffee only if it is a stored file no one else's
- * coffee holds: a fresh upload, or one of your own (Undo putting one back).
+ * coffee holds or recently let go of: a fresh upload, or one of your own
+ * (Undo putting one back).
  */
 export async function assertPhotoUsable(ctx: MutationCtx, subject: string, photo: Id<'_storage'> | undefined) {
   if (!photo) return
@@ -20,6 +21,16 @@ export async function assertPhotoUsable(ctx: MutationCtx, subject: string, photo
     .withIndex('by_photo', (q) => q.eq('photo', photo))
     .collect()
   if (holders.some((c) => c.ownerSubject !== subject)) throw new ConvexError({ code: 'photoNotFound' })
+  if (await releasedByOther(ctx, subject, photo)) throw new ConvexError({ code: 'photoNotFound' })
+}
+
+/** Someone else's coffee let go of this file (it waits for their Undo or the sweep). */
+export async function releasedByOther(ctx: QueryCtx, subject: string, photo: Id<'_storage'>) {
+  const releases = await ctx.db
+    .query('releasedPhotos')
+    .withIndex('by_storage', (q) => q.eq('storageId', photo))
+    .collect()
+  return releases.some((r) => r.ownerSubject !== undefined && r.ownerSubject !== subject)
 }
 
 /**
