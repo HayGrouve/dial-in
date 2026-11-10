@@ -1,4 +1,5 @@
-import type { Coffee, restockCoffee } from './db'
+import type { Coffee, CoffeeDetails } from './db'
+import type { RestockChanges } from './toast'
 
 /** Case, accents, punctuation and extra whitespace don't count: "Kiln & Crow" reads as "kiln crow". */
 export const normalise = (s: string) =>
@@ -42,13 +43,11 @@ const DETAILS = {
   notes: 'notes',
 } as const satisfies Partial<Record<keyof Coffee, string>>
 
-type RestockChanges = NonNullable<Parameters<typeof restockCoffee>[1]>
-
 const isEmpty = (v: unknown) => v == null || v === '' || (Array.isArray(v) && v.length === 0)
 const comparable = (v: unknown) => (Array.isArray(v) ? v.map((x) => normalise(String(x))).sort().join('\n') : normalise(String(v)))
 
 export interface RestockPlan {
-  /** For `restockWithUndo`: the new photo, and details only where the coffee has none. */
+  /** For `restockWithUndo`: details only where the coffee has none. A new photo is added by the caller once uploaded. */
   changes: RestockChanges
   /** Details the new bag fills in. */
   filled: string[]
@@ -57,8 +56,8 @@ export interface RestockPlan {
 }
 
 /** What Bought it again does to a finished coffee. Nothing already filled in is overwritten. */
-export function restockPlan(coffee: Coffee, draft: Partial<Coffee>): RestockPlan {
-  const changes: RestockChanges = draft.photo ? { photo: draft.photo } : {}
+export function restockPlan(coffee: Coffee, draft: Partial<Omit<CoffeeDetails, 'photo'>>): RestockPlan {
+  const changes: RestockChanges = {}
   const filled: string[] = []
   const kept: string[] = []
   for (const [key, label] of Object.entries(DETAILS) as [keyof typeof DETAILS, string][]) {

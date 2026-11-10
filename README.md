@@ -47,4 +47,4 @@ Your coffees are stored in the browser on each device, not on Vercel. Use **Sett
 
 ## Stack
 
-Vite · React 19 · TypeScript · Tailwind CSS 4 · Dexie (IndexedDB) · wouter · vite-plugin-pwa · Gemini API (label reading)
+Vite · React 19 · TypeScript · Tailwind CSS 4 · Convex (log and bag photos) · Clerk · wouter · vite-plugin-pwa · Gemini API (label reading)

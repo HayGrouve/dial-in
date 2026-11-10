@@ -1,10 +1,11 @@
+import { useQuery } from 'convex/react'
 import { useLayoutEffect, useRef, useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
 import { Link, useLocation, useSearch } from 'wouter'
+import { api } from '../../convex/_generated/api'
 import AccountMenu from '../components/AccountMenu'
 import { BagPhoto } from '../components/ui'
 import { Bean, Chevron, Gear, Plus, Search } from '../components/icons'
-import { db, type Brew, type Coffee } from '../lib/db'
+import type { Brew, Coffee } from '../lib/db'
 import { formatTime, METHODS, METHOD_SHORT, nextMove, relativeDay, settingsFor } from '../lib/methods'
 import { finishWithUndo, restockWithUndo, toastAnchor } from '../lib/toast'
 
@@ -14,8 +15,9 @@ const stretched =
   'rounded-[inherit] after:absolute after:inset-0 after:rounded-[inherit] focus-visible:outline-none focus-visible:after:outline-offset-2 focus-visible:after:[outline:2px_solid_var(--accent)]'
 
 export default function Home() {
-  const coffees = useLiveQuery(() => db.coffees.orderBy('updatedAt').reverse().toArray())
-  const brews = useLiveQuery(() => db.brews.orderBy('createdAt').reverse().toArray())
+  // Newest first: coffees by last change, brews by when they were logged.
+  const coffees = useQuery(api.coffees.listMine)
+  const brews = useQuery(api.brews.listMine)
   // Search and the Finished list live in the URL, so coming back from a coffee restores them.
   const [, navigate] = useLocation()
   const params = new URLSearchParams(useSearch())
@@ -33,7 +35,29 @@ export default function Home() {
   // Manage turns the shelf row into a list with a Finish button per coffee.
   const [managing, setManaging] = useState(false)
 
-  if (!coffees || !brews) return null
+  const header = (
+    <header className="flex items-center justify-between pt-[max(env(safe-area-inset-top),1rem)] pb-4">
+      <h1 className="text-lg font-semibold tracking-tight" translate="no">
+        Онова за кафето
+      </h1>
+      <div className="-mr-2 flex items-center gap-1">
+        <Link href="/settings" className="rounded-full p-2.5 text-muted hover:bg-surface hover:text-ink" aria-label="Settings">
+          <Gear />
+        </Link>
+        <AccountMenu />
+      </div>
+    </header>
+  )
+
+  // The header stays put while the log loads; the shelf shows its shape, never the empty state.
+  if (!coffees || !brews) {
+    return (
+      <>
+        {header}
+        <ShelfSkeleton />
+      </>
+    )
+  }
 
   const brewsOf = (id: string) => brews.filter((b) => b.coffeeId === id)
   const shelf = coffees.filter((c) => !c.finished)
@@ -45,10 +69,10 @@ export default function Home() {
   const showManage = managing || shelf.length >= 4
 
   // The bag brewed most recently is the one you're most likely reaching for again.
-  const lastBrew = brews.find((b) => shelf.some((c) => c.id === b.coffeeId))
-  const upNext = lastBrew && shelf.find((c) => c.id === lastBrew.coffeeId)
+  const lastBrew = brews.find((b) => shelf.some((c) => c._id === b.coffeeId))
+  const upNext = lastBrew && shelf.find((c) => c._id === lastBrew.coffeeId)
   const dialing = shelf.filter((c) => {
-    const bs = brewsOf(c.id)
+    const bs = brewsOf(c._id)
     return bs.length > 0 && !bs.some((b) => b.dialedIn)
   })
 
@@ -61,17 +85,7 @@ export default function Home() {
 
   return (
     <>
-      <header className="flex items-center justify-between pt-[max(env(safe-area-inset-top),1rem)] pb-4">
-        <h1 className="text-lg font-semibold tracking-tight" translate="no">
-          Онова за кафето
-        </h1>
-        <div className="-mr-2 flex items-center gap-1">
-          <Link href="/settings" className="rounded-full p-2.5 text-muted hover:bg-surface hover:text-ink" aria-label="Settings">
-            <Gear />
-          </Link>
-          <AccountMenu />
-        </div>
-      </header>
+      {header}
 
       {coffees.length === 0 && <EmptyState />}
 
@@ -98,16 +112,16 @@ export default function Home() {
           ) : (
             <ul className="space-y-1">
               {results.map((c) => (
-                <li key={c.id} className="relative flex items-center gap-3 rounded-[20px] p-2 hover:bg-surface">
-                  <Link href={`/coffee/${c.id}`} className={`flex min-w-0 flex-1 items-center gap-3 ${stretched}`}>
-                    <BagPhoto blob={c.photo} alt="" className="aspect-[4/5] w-12 shrink-0 rounded-xl" iconSize={18} />
+                <li key={c._id} className="relative flex items-center gap-3 rounded-[20px] p-2 hover:bg-surface">
+                  <Link href={`/coffee/${c._id}`} className={`flex min-w-0 flex-1 items-center gap-3 ${stretched}`}>
+                    <BagPhoto src={c.photoUrl} alt="" className="aspect-[4/5] w-12 shrink-0 rounded-xl" iconSize={18} />
                     <div className="min-w-0 flex-1">
                       <div className="truncate font-medium">{c.name}</div>
                       <div className="truncate text-sm text-muted">{c.finished ? `${c.roaster}, finished` : c.roaster}</div>
                       {/* A finished coffee's pill takes the trailing edge, so its settings move under the name. */}
-                      {c.finished && <SettingsLine brews={brewsOf(c.id)} />}
+                      {c.finished && <SettingsLine brews={brewsOf(c._id)} />}
                     </div>
-                    {!c.finished && <SettingsLine brews={brewsOf(c.id)} />}
+                    {!c.finished && <SettingsLine brews={brewsOf(c._id)} />}
                   </Link>
                   {/* Finishing lives on Up Next, Manage and the coffee page; search only restocks. */}
                   {c.finished && <BoughtItAgain coffee={c} />}
@@ -118,7 +132,7 @@ export default function Home() {
         </section>
       ) : (
         <>
-          {upNext && lastBrew && <UpNext coffee={upNext} brews={brewsOf(upNext.id)} last={lastBrew} />}
+          {upNext && lastBrew && <UpNext coffee={upNext} brews={brewsOf(upNext._id)} last={lastBrew} />}
 
           {shelf.length > 0 && (
             <section className={upNext ? 'mt-10' : ''}>
@@ -134,7 +148,7 @@ export default function Home() {
               {managing ? (
                 <ul className="space-y-2">
                   {shelf.map((c, i) => (
-                    <li key={c.id} className="rise" style={{ '--i': i } as React.CSSProperties}>
+                    <li key={c._id} className="rise" style={{ '--i': i } as React.CSSProperties}>
                       <ManageRow coffee={c} />
                     </li>
                   ))}
@@ -154,7 +168,7 @@ export default function Home() {
               <h2 className="mb-4 text-xl font-semibold tracking-tight">Still dialing</h2>
               <div className="space-y-2">
                 {dialing.map((c) => (
-                  <DialingRow key={c.id} coffee={c} last={brewsOf(c.id)[0]} />
+                  <DialingRow key={c._id} coffee={c} last={brewsOf(c._id)[0]} />
                 ))}
               </div>
             </section>
@@ -179,13 +193,13 @@ export default function Home() {
               {showFinished && (
                 <ul className="mt-2 space-y-1">
                   {finished.map((c) => (
-                    <li key={c.id} className="relative flex items-center gap-2 rounded-full py-1 pr-1 pl-1.5 hover:bg-surface">
+                    <li key={c._id} className="relative flex items-center gap-2 rounded-full py-1 pr-1 pl-1.5 hover:bg-surface">
                       {/* The photo tells apart two bags with the same name from different roasters. */}
-                      <Link href={`/coffee/${c.id}`} className={`flex min-w-0 flex-1 items-center gap-3 ${stretched}`}>
-                        <BagPhoto blob={c.photo} alt="" className="size-11 shrink-0 rounded-full" iconSize={16} />
+                      <Link href={`/coffee/${c._id}`} className={`flex min-w-0 flex-1 items-center gap-3 ${stretched}`}>
+                        <BagPhoto src={c.photoUrl} alt="" className="size-11 shrink-0 rounded-full" iconSize={16} />
                         <span className="flex min-w-0 flex-col py-1.5">
                           <span className="truncate">{c.name}</span>
-                          <SettingsLine brews={brewsOf(c.id)} />
+                          <SettingsLine brews={brewsOf(c._id)} />
                         </span>
                       </Link>
                       <BoughtItAgain coffee={c} />
@@ -217,8 +231,8 @@ function UpNext({ coffee, brews, last }: { coffee: Coffee; brews: Brew[]; last: 
   const m = METHODS[setting.method]
   return (
     <section className="rise card p-4">
-      <Link href={`/coffee/${coffee.id}`} className="flex gap-4">
-        <BagPhoto blob={coffee.photo} alt="" className="aspect-[4/5] w-24 shrink-0 rounded-[20px]" iconSize={28} />
+      <Link href={`/coffee/${coffee._id}`} className="flex gap-4">
+        <BagPhoto src={coffee.photoUrl} alt="" className="aspect-[4/5] w-24 shrink-0 rounded-[20px]" iconSize={28} />
         <div className="min-w-0 py-1">
           <p className="text-sm text-muted">Brewed {relativeDay(last.createdAt).toLowerCase()}</p>
           <h2 className="mt-1 text-2xl leading-tight font-semibold tracking-tight break-words">{coffee.name}</h2>
@@ -239,7 +253,7 @@ function UpNext({ coffee, brews, last }: { coffee: Coffee; brews: Brew[]; last: 
         </p>
       </div>
       <div className="mt-5 flex gap-2">
-        <Link href={`/coffee/${coffee.id}/brew/new?method=${setting.method}`} className="btn-primary min-w-0 flex-1 !px-4 !py-3.5 !text-base">
+        <Link href={`/coffee/${coffee._id}/brew/new?method=${setting.method}`} className="btn-primary min-w-0 flex-1 !px-4 !py-3.5 !text-base">
           <Plus width={18} height={18} className="shrink-0" /> <span className="truncate">Log another {m.label.toLowerCase()}</span>
         </Link>
         <button type="button" onClick={() => finishWithUndo(coffee)} className="btn-ghost shrink-0 !px-4" aria-label={`Finish bag of ${coffee.name}`}>
@@ -255,7 +269,7 @@ function ShelfRow({ shelf, brewsOf }: { shelf: Coffee[]; brewsOf: (id: string) =
   const atStart = useRef(true)
   // Scroll snap holds on to the card it was snapped to, so a coffee restocked to the front would land
   // out of view. If the row was at its start, it stays there and the coffee lands in view.
-  const front = shelf[0].id
+  const front = shelf[0]._id
   useLayoutEffect(() => {
     if (atStart.current) row.current?.scrollTo({ left: 0 })
   }, [front])
@@ -268,8 +282,8 @@ function ShelfRow({ shelf, brewsOf }: { shelf: Coffee[]; brewsOf: (id: string) =
       className="-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       {shelf.map((c, i) => (
-        <li key={c.id} className="rise w-[42vw] max-w-[180px] shrink-0 snap-start" style={{ '--i': i } as React.CSSProperties}>
-          <ShelfCard coffee={c} brews={brewsOf(c.id)} />
+        <li key={c._id} className="rise w-[42vw] max-w-[180px] shrink-0 snap-start" style={{ '--i': i } as React.CSSProperties}>
+          <ShelfCard coffee={c} brews={brewsOf(c._id)} />
         </li>
       ))}
     </ul>
@@ -278,8 +292,8 @@ function ShelfRow({ shelf, brewsOf }: { shelf: Coffee[]; brewsOf: (id: string) =
 
 function ShelfCard({ coffee, brews }: { coffee: Coffee; brews: Brew[] }) {
   return (
-    <Link href={`/coffee/${coffee.id}`} className="group block">
-      <BagPhoto blob={coffee.photo} alt="" className="aspect-[4/5] w-full rounded-[20px] transition group-active:scale-[0.98]" />
+    <Link href={`/coffee/${coffee._id}`} className="group block">
+      <BagPhoto src={coffee.photoUrl} alt="" className="aspect-[4/5] w-full rounded-[20px] transition group-active:scale-[0.98]" />
       <div className="mt-2.5 truncate font-medium">{coffee.name}</div>
       <div className="truncate text-sm text-muted">{coffee.roaster}</div>
       <div className="mt-1">
@@ -293,8 +307,8 @@ function ShelfCard({ coffee, brews }: { coffee: Coffee; brews: Brew[] }) {
 function ManageRow({ coffee }: { coffee: Coffee }) {
   return (
     <div className="relative flex items-center gap-3 rounded-[20px] bg-surface p-2 transition hover:bg-tint">
-      <Link href={`/coffee/${coffee.id}`} className={`flex min-w-0 flex-1 items-center gap-3 ${stretched}`}>
-        <BagPhoto blob={coffee.photo} alt="" className="aspect-[4/5] w-12 shrink-0 rounded-xl" iconSize={18} />
+      <Link href={`/coffee/${coffee._id}`} className={`flex min-w-0 flex-1 items-center gap-3 ${stretched}`}>
+        <BagPhoto src={coffee.photoUrl} alt="" className="aspect-[4/5] w-12 shrink-0 rounded-xl" iconSize={18} />
         <div className="min-w-0">
           <div className="truncate font-medium">{coffee.name}</div>
           <div className="truncate text-sm text-muted">{coffee.roaster}</div>
@@ -319,7 +333,7 @@ function BoughtItAgain({ coffee }: { coffee: Coffee }) {
 function DialingRow({ coffee, last }: { coffee: Coffee; last: Brew }) {
   const move = last.taste && nextMove(last.taste)
   return (
-    <Link href={`/coffee/${coffee.id}`} className="flex items-center gap-4 rounded-[28px] bg-surface p-4 transition hover:bg-tint">
+    <Link href={`/coffee/${coffee._id}`} className="flex items-center gap-4 rounded-[28px] bg-surface p-4 transition hover:bg-tint">
       <div className="min-w-0 flex-1">
         <div className="truncate font-medium">{coffee.name}</div>
         <p className="mt-0.5 text-sm text-muted">
@@ -345,11 +359,30 @@ function SettingsLine({ brews }: { brews: Brew[] }) {
   return (
     <span className="flex shrink-0 flex-wrap gap-x-3 font-mono text-sm">
       {pinned.map(({ brew }) => (
-        <span key={brew.id}>
+        <span key={brew._id}>
           <span className="text-xs text-muted">{METHOD_SHORT[brew.method]}</span> <span className="font-semibold text-accent-fg">{brew.grindSetting}</span>
         </span>
       ))}
     </span>
+  )
+}
+
+/** The shelf's shape while the log loads. */
+function ShelfSkeleton() {
+  return (
+    <div role="status" className="motion-safe:animate-pulse">
+      <span className="sr-only">Зарежда се…</span>
+      <div aria-hidden className="mb-4 h-7 w-36 rounded-full bg-tint" />
+      <div aria-hidden className="-mx-4 flex gap-3 overflow-hidden px-4">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="w-[42vw] max-w-[180px] shrink-0">
+            <div className="aspect-[4/5] w-full rounded-[20px] bg-tint" />
+            <div className="mt-2.5 h-4 w-3/4 rounded-full bg-tint" />
+            <div className="mt-2 h-3 w-1/2 rounded-full bg-tint" />
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }
 

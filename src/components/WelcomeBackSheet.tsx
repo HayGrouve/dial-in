@@ -1,9 +1,10 @@
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useQuery } from 'convex/react'
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
+import { api } from '../../convex/_generated/api'
 import { Check, Close, Pin } from './icons'
 import { BagPhoto } from './ui'
 import { arrowKeys } from '../lib/a11y'
-import { db, type Brew, type Coffee } from '../lib/db'
+import type { Brew, Coffee, CoffeeDetails } from '../lib/db'
 import { restockPlan } from '../lib/match'
 import { formatTime, METHODS, ratio, settingsFor } from '../lib/methods'
 
@@ -13,7 +14,9 @@ interface Props {
   /** Coffees with the same roaster and name, newest first. */
   matches: Coffee[]
   /** What was scanned or typed on New coffee. */
-  draft: Partial<Coffee>
+  draft: Partial<Omit<CoffeeDetails, 'photo'>>
+  /** A bag photo was taken on New coffee; a restock makes it the coffee's photo. */
+  newPhoto: boolean
   busy: boolean
   onRestock: (coffee: Coffee) => void
   onOpen: (coffee: Coffee) => void
@@ -27,21 +30,20 @@ interface Props {
  * doesn't pop in after the sheet opens.
  */
 export function WelcomeBackSheet(props: Props) {
-  const ids = props.matches.map((c) => c.id)
-  const brews = useLiveQuery(() => db.brews.where('coffeeId').anyOf(ids).reverse().sortBy('createdAt'), [ids.join()])
+  const brews = useQuery(api.brews.byCoffees, { coffeeIds: props.matches.map((c) => c._id) })
   if (!brews) return null
   return <Sheet {...props} brews={brews} />
 }
 
-function Sheet({ matches, draft, busy, brews, onRestock, onOpen, onAddNew, onClose }: Props & { brews: Brew[] }) {
-  const [pickedId, setPickedId] = useState(matches[0].id)
-  const coffee = matches.find((c) => c.id === pickedId) ?? matches[0]
+function Sheet({ matches, draft, newPhoto, busy, brews, onRestock, onOpen, onAddNew, onClose }: Props & { brews: Brew[] }) {
+  const [pickedId, setPickedId] = useState(matches[0]._id)
+  const coffee = matches.find((c) => c._id === pickedId) ?? matches[0]
   const dialog = useRef<HTMLDivElement>(null)
   const leadId = useId()
   const nameId = useId()
   const whichId = useId()
 
-  const brewsOf = (c: Coffee) => brews.filter((b) => b.coffeeId === c.id)
+  const brewsOf = (c: Coffee) => brews.filter((b) => b.coffeeId === c._id)
   const settingOf = (c: Coffee) => {
     const settings = settingsFor(brewsOf(c))
     return settings.find((s) => !s.provisional) ?? settings[0]
@@ -99,7 +101,7 @@ function Sheet({ matches, draft, busy, brews, onRestock, onOpen, onAddNew, onClo
         </button>
 
         <div className="flex items-end gap-4 pr-8">
-          <BagPhoto blob={coffee.photo} alt={`Bag of ${coffee.name}`} className="h-[104px] w-[84px] shrink-0 rounded-[20px]" iconSize={28} />
+          <BagPhoto src={coffee.photoUrl} alt={`Bag of ${coffee.name}`} className="h-[104px] w-[84px] shrink-0 rounded-[20px]" iconSize={28} />
           <div className="min-w-0 pb-1">
             <p id={leadId} className="text-sm text-muted">
               {coffee.finished ? 'Welcome back' : 'You already have this'}
@@ -120,16 +122,16 @@ function Sheet({ matches, draft, busy, brews, onRestock, onOpen, onAddNew, onClo
             </p>
             <div role="radiogroup" aria-labelledby={whichId} onKeyDown={arrowKeys} className="-mx-5 mt-1 flex gap-2 overflow-x-auto px-5 py-1 [scrollbar-width:none]">
               {matches.map((c) => {
-                const on = c.id === coffee.id
+                const on = c._id === coffee._id
                 const s = settingOf(c)
                 return (
                   <button
-                    key={c.id}
+                    key={c._id}
                     type="button"
                     role="radio"
                     aria-checked={on}
                     tabIndex={on ? 0 : -1}
-                    onClick={() => setPickedId(c.id)}
+                    onClick={() => setPickedId(c._id)}
                     className={`shrink-0 rounded-2xl border px-3.5 py-2 text-left text-sm transition ${on ? 'border-ink bg-ink text-canvas' : 'border-line text-muted hover:bg-tint hover:text-ink'}`}
                   >
                     <span className="block font-medium">{c.finished ? `Finished ${ago(c.updatedAt)}` : 'On your shelf'}</span>
@@ -151,7 +153,7 @@ function Sheet({ matches, draft, busy, brews, onRestock, onOpen, onAddNew, onClo
 
         <SettingHero setting={settingOf(coffee)} />
 
-        <p className="mt-3 text-sm leading-relaxed text-muted">{summary(coffee, draft, brewsOf(coffee).length)}</p>
+        <p className="mt-3 text-sm leading-relaxed text-muted">{summary(coffee, draft, newPhoto, brewsOf(coffee).length)}</p>
 
         <div className="mt-5 space-y-2">
           <button type="button" disabled={busy} onClick={() => (coffee.finished ? onRestock(coffee) : onOpen(coffee))} className="btn-primary w-full !py-4 !text-base">
@@ -216,7 +218,7 @@ export function ReviewPill({ matches, onClick }: { matches: Coffee[]; onClick: (
   const [first] = matches
   return (
     <button type="button" onClick={onClick} className="mb-2 flex w-full items-center gap-3 rounded-full bg-surface py-1.5 pr-4 pl-1.5 text-left text-sm ring-1 ring-line transition hover:bg-tint">
-      <BagPhoto blob={first.photo} alt="" className="h-9 w-9 shrink-0 rounded-full" iconSize={16} />
+      <BagPhoto src={first.photoUrl} alt="" className="h-9 w-9 shrink-0 rounded-full" iconSize={16} />
       <span className="min-w-0 flex-1 truncate">
         {matches.length > 1 ? `${matches.length} coffees match this one` : first.finished ? `You’ve had ${first.name} before` : `${first.name} is on your shelf`}
       </span>
@@ -226,11 +228,11 @@ export function ReviewPill({ matches, onClick }: { matches: Coffee[]; onClick: (
 }
 
 /** One line on what accepting does, so nothing about a restock is a surprise. */
-function summary(coffee: Coffee, draft: Partial<Coffee>, brews: number) {
+function summary(coffee: Coffee, draft: Props['draft'], newPhoto: boolean, brews: number) {
   if (!coffee.finished) return 'Opening it leaves this form. Nothing you scanned or typed here is saved.'
   const { filled, kept } = restockPlan(coffee, draft)
   const line = [
-    draft.photo && 'Your new photo becomes the bag photo.',
+    newPhoto && 'Your new photo becomes the bag photo.',
     filled.length > 0 && `Fills in ${list(filled)}.`,
     kept.length > 0 && `Keeps its own ${list(kept)}.`,
     brews > 0 && `Your ${brews} ${brews === 1 ? 'brew comes' : 'brews come'} with it.`,

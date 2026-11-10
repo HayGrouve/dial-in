@@ -1,5 +1,5 @@
 import { useAuth } from '@clerk/react'
-import { useRef, useState, type MouseEvent } from 'react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { Link } from 'wouter'
 import { compressImage } from '../lib/image'
 import { getGeminiKey } from '../lib/gemini-key'
@@ -25,7 +25,8 @@ export function BagScanner({
   onScanned,
   onLeave,
 }: {
-  front?: Blob
+  /** A photo taken here (Blob), or the stored photo's URL on Edit coffee. */
+  front?: Blob | string
   onFront: (b: Blob | undefined) => void
   onScanned: (fields: ScannedFields) => void
   /** Click handler for the link that leaves the form, e.g. an unsaved-changes guard. */
@@ -41,12 +42,14 @@ export function BagScanner({
   const apiKey = getGeminiKey(userId)
   const hasKey = !!apiKey
 
-  const scan = async (photos: Blob[]) => {
+  const scan = async (photos: (Blob | string)[]) => {
     const id = ++run.current
     setStatus({ kind: 'reading' })
     try {
       const { scanBag } = await import('../lib/scan')
-      const fields = await scanBag(apiKey, photos)
+      // The stored front photo on Edit coffee is a URL; Gemini needs its bytes.
+      const blobs = await Promise.all(photos.map(async (p) => (typeof p === 'string' ? (await fetch(p)).blob() : p)))
+      const fields = await scanBag(apiKey, blobs)
       if (id !== run.current) return
       onScanned(fields)
       const found = Object.values(fields).filter((v) => (Array.isArray(v) ? v.length : v != null)).length
@@ -56,7 +59,7 @@ export function BagScanner({
     }
   }
 
-  const photosFor = (s: { front?: Blob; back?: Blob }) => [s.front ?? front, s.back].filter((b): b is Blob => !!b)
+  const photosFor = (s: { front?: Blob; back?: Blob }) => [s.front ?? front, s.back].filter((b): b is Blob | string => !!b)
 
   const take = async (side: Side, file?: File) => {
     if (!file) return
@@ -122,7 +125,7 @@ export function BagScanner({
   )
 }
 
-function Slot({ side, photo, busy, onFile, onRemove }: { side: Side; photo?: Blob; busy: boolean; onFile: (f?: File) => void; onRemove: () => void }) {
+function Slot({ side, photo, busy, onFile, onRemove }: { side: Side; photo?: Blob | string; busy: boolean; onFile: (f?: File) => void; onRemove: () => void }) {
   const cameraRef = useRef<HTMLInputElement>(null)
   const libraryRef = useRef<HTMLInputElement>(null)
   const label = side === 'front' ? 'Front' : 'Back'
@@ -147,7 +150,11 @@ function Slot({ side, photo, busy, onFile, onRemove }: { side: Side; photo?: Blo
     <div>
       {photo ? (
         <div className="relative">
-          <BagPhoto blob={photo} alt={`${label} of the bag`} className="aspect-[4/5] w-full rounded-[20px] border border-line" />
+          {typeof photo === 'string' ? (
+            <BagPhoto src={photo} alt={`${label} of the bag`} className="aspect-[4/5] w-full rounded-[20px] border border-line" />
+          ) : (
+            <PickedPhoto blob={photo} alt={`${label} of the bag`} className="aspect-[4/5] w-full rounded-[20px] border border-line object-cover" />
+          )}
           <span className="absolute top-2 left-2 rounded-full bg-ink/75 px-2.5 py-1 text-xs font-semibold text-canvas backdrop-blur">{label}</span>
           <div className="absolute inset-x-2 bottom-2 flex justify-center gap-1.5">
             <button type="button" className={pill} onClick={() => cameraRef.current?.click()} aria-label={`Retake ${side} photo`}>Retake</button>
@@ -174,4 +181,16 @@ function Slot({ side, photo, busy, onFile, onRemove }: { side: Side; photo?: Blo
       {input(libraryRef)}
     </div>
   )
+}
+
+/** A photo taken here and not uploaded yet. Object URLs are an external resource: one per blob, revoked on change. */
+function PickedPhoto({ blob, alt, className }: { blob: Blob; alt: string; className: string }) {
+  const img = useRef<HTMLImageElement>(null)
+  useEffect(() => {
+    if (!img.current) return
+    const url = URL.createObjectURL(blob)
+    img.current.src = url
+    return () => URL.revokeObjectURL(url)
+  }, [blob])
+  return <img ref={img} alt={alt} className={className} />
 }

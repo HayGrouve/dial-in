@@ -1,13 +1,12 @@
 import { useAuth } from '@clerk/react'
-import { useLiveQuery } from 'dexie-react-hooks'
-import { useRef, useState } from 'react'
+import { useQuery } from 'convex/react'
+import { useState } from 'react'
+import { api } from '../../convex/_generated/api'
 import { Moon, Monitor, Sun } from '../components/icons'
-import { Field, Header, Section, Toggle } from '../components/ui'
+import { Field, Header, Loading, Section, Toggle } from '../components/ui'
 import { arrowKeys } from '../lib/a11y'
-import { exportBackup, importBackup } from '../lib/backup'
-import { db } from '../lib/db'
+import { useEquipment, useSetEquipment } from '../lib/equipment'
 import { getGeminiKey, setGeminiKey } from '../lib/gemini-key'
-import { getGrinder, getOpusDial, setGrinder, setOpusDial } from '../lib/prefs'
 import { getThemePref, setThemePref, type ThemePref } from '../lib/theme'
 
 const CHEAT_SHEET = [
@@ -27,11 +26,12 @@ const THEMES: { value: ThemePref; label: string; icon: typeof Sun }[] = [
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 
 export default function Settings() {
-  const counts = useLiveQuery(async () => ({ coffees: await db.coffees.count(), brews: await db.brews.count() }))
-  const fileRef = useRef<HTMLInputElement>(null)
-  const [message, setMessage] = useState<string>()
+  const counts = useQuery(api.data.counts)
+  const equipment = useEquipment()
+  const setEquipment = useSetEquipment()
   const [theme, setTheme] = useState(getThemePref)
-  const [grinder, setGrinderDraft] = useState(getGrinder)
+  // What is typed in the grinder field; Convex trims it, so the field keeps its own copy while you type.
+  const [grinder, setGrinderDraft] = useState<string>()
   const { userId } = useAuth()
   const [apiKey, setApiKeyDraft] = useState(() => getGeminiKey(userId))
   // Someone else signed in from another tab or the hub: their field starts empty.
@@ -40,17 +40,14 @@ export default function Settings() {
     setKeyFor(userId)
     setApiKeyDraft(getGeminiKey(userId))
   }
-  const [opusDial, setOpusDialDraft] = useState(getOpusDial)
 
-  const onImport = async (file?: File) => {
-    if (!file) return
-    try {
-      const r = await importBackup(file)
-      setGrinderDraft(getGrinder())
-      setMessage(`Imported ${plural(r.coffees, 'coffee')} and ${plural(r.brews, 'brew')}.`)
-    } catch (e) {
-      setMessage(e instanceof Error ? e.message : 'Import failed.')
-    }
+  if (!equipment) {
+    return (
+      <>
+        <Header back="/" title="Settings" />
+        <Loading />
+      </>
+    )
   }
 
   return (
@@ -85,26 +82,23 @@ export default function Settings() {
           </div>
         </Section>
 
-        <Section title="Equipment" hint="Used for every new brew">
+        <Section title="Equipment" hint="Used for every new brew, on every device">
           <Field label="Grinder">
             <input
               className="input"
               name="grinder"
               autoComplete="off"
               placeholder="e.g. Niche Zero, Comandante C40…"
-              value={grinder}
+              value={grinder ?? equipment.grinder}
               onChange={(e) => {
                 setGrinderDraft(e.target.value)
-                setGrinder(e.target.value)
+                void setEquipment({ grinder: e.target.value })
               }}
             />
           </Field>
           <Toggle
-            checked={opusDial}
-            onChange={(v) => {
-              setOpusDial(v)
-              setOpusDialDraft(v)
-            }}
+            checked={equipment.opusDial}
+            onChange={(v) => void setEquipment({ opusDial: v })}
             label={
               <span>
                 <span className="block font-semibold">Fellow Opus dial</span>
@@ -143,19 +137,7 @@ export default function Settings() {
         </Section>
 
         <Section title="Your data" hint={counts && `${plural(counts.coffees, 'coffee')} · ${plural(counts.brews, 'brew')}`}>
-          <p className="text-sm text-muted">Everything lives only on this device. Export a backup now and then, or to move to a new phone.</p>
-          <div className="grid grid-cols-2 gap-2">
-            <button className="btn-primary" onClick={() => void exportBackup()}>
-              Export backup
-            </button>
-            <button className="btn-ghost" onClick={() => fileRef.current?.click()}>
-              Import backup
-            </button>
-          </div>
-          <input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={(e) => void onImport(e.target.files?.[0])} />
-          <p className="text-sm font-medium text-accent-fg empty:sr-only" role="status">
-            {message}
-          </p>
+          <p className="text-sm text-muted">Дневникът ти се пази в акаунта ти и е същият на всяко устройство. Вносът и износът идват скоро.</p>
         </Section>
 
         <Section title="Dial-in cheat sheet" summary="Five rules for dialing in a new bag" collapsible defaultOpen={false}>
