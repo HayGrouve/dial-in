@@ -1,33 +1,48 @@
-import { useLiveQuery } from 'dexie-react-hooks'
-import { useEffect, useState, type FormEvent } from 'react'
+import { useMutation, useQuery } from 'convex/react'
+import { useState, type FormEvent } from 'react'
 import { useLocation, useParams } from 'wouter'
+import { api } from '../../convex/_generated/api'
 import { BagScanner } from '../components/BagScanner'
-import { Field, Header, Rating, Section, Segmented, TagInput } from '../components/ui'
+import { Field, Header, Loading, NotFound, Rating, Section, Segmented, TagInput } from '../components/ui'
 import { ReviewPill, WelcomeBackSheet } from '../components/WelcomeBackSheet'
 import { useLeaveGuard } from '../lib/a11y'
-import { db, newId, PROCESSES, ROAST_LEVELS, type Coffee } from '../lib/db'
+import { detailsOf, PROCESSES, ROAST_LEVELS, roastLabel, type Coffee, type CoffeeDetails } from '../lib/db'
+import { uploadPhoto } from '../lib/image'
 import { findMatches, matchKey, restockPlan } from '../lib/match'
-import { dotted } from '../lib/methods'
+import { dotted, grams } from '../lib/methods'
 import type { ScannedFields } from '../lib/scan'
 import { restockWithUndo } from '../lib/toast'
 
-type Draft = Omit<Coffee, 'id' | 'createdAt' | 'updatedAt'>
+type Draft = Omit<CoffeeDetails, 'photo'>
 
-const empty: Draft = { name: '', roaster: '', tastingNotes: [], finished: false }
+const empty: Draft = { name: '', roaster: '', tastingNotes: [] }
 
 export default function CoffeeForm() {
   const { id } = useParams<{ id?: string }>()
   const [, navigate] = useLocation()
   const [draft, setDraft] = useState<Draft>(empty)
-  const [loaded, setLoaded] = useState(!id)
+  // The bag photo: a Blob picked here and not uploaded yet, or the stored photo's URL, left as it is.
+  const [photo, setPhoto] = useState<Blob | string>()
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [failed, setFailed] = useState(false)
   const guard = useLeaveGuard(dirty && !saving)
-  const coffees = useLiveQuery(() => db.coffees.toArray(), [])
+  const coffees = useQuery(api.coffees.listMine)
+  const editing = useQuery(api.coffees.get, id ? { id } : 'skip')
+  const createCoffee = useMutation(api.coffees.create)
+  const updateCoffee = useMutation(api.coffees.update)
+  // Edit coffee: the stored values fill the form once, then the form owns them.
+  const [loadedId, setLoadedId] = useState<string>()
+  if (editing && loadedId !== editing._id) {
+    setLoadedId(editing._id)
+    const { photo: _stored, ...details } = detailsOf(editing)
+    setDraft(details)
+    setPhoto(editing.photoUrl)
+  }
   const roasters = coffees && [...new Set(coffees.map((c) => c.roaster))].sort()
 
   // New coffee only: a coffee you've had before is offered back instead of added twice. The offer
-  // is made once per match (`offered`), and not again after Add as new anyway (`declined`).
+  // is made once per match (`offered`), and not again after Добави като ново (`declined`).
   const [offered, setOffered] = useState('')
   const [declined, setDeclined] = useState('')
   const [sheet, setSheet] = useState(false)
@@ -44,14 +59,6 @@ export default function CoffeeForm() {
       setSheet(true)
     }
   }
-
-  useEffect(() => {
-    if (!id) return
-    void db.coffees.get(id).then((c) => {
-      if (c) setDraft(c)
-      setLoaded(true)
-    })
-  }, [id])
 
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => {
     setDirty(true)
@@ -88,94 +95,118 @@ export default function CoffeeForm() {
       return
     }
     setSaving(true)
-    const now = Date.now()
-    if (id) {
-      await db.coffees.update(id, { ...draft, updatedAt: now })
-      navigate(`/coffee/${id}`, { replace: true })
-    } else {
-      const coffee: Coffee = { ...draft, id: newId(), createdAt: now, updatedAt: now }
-      await db.coffees.add(coffee)
-      navigate(`/coffee/${coffee.id}`, { replace: true })
+    setFailed(false)
+    try {
+      // A new photo goes up first; an untouched one keeps its file; a removed one leaves the coffee.
+      const stored = photo instanceof Blob ? await uploadPhoto(photo) : photo ? editing?.photo : undefined
+      if (editing) {
+        await updateCoffee({ ...draft, photo: stored, id: editing._id })
+        navigate(`/coffee/${editing._id}`, { replace: true })
+      } else {
+        const created = await createCoffee({ ...draft, photo: stored })
+        navigate(`/coffee/${created}`, { replace: true })
+      }
+    } catch {
+      setSaving(false)
+      setFailed(true)
     }
   }
 
   // Leaving the form on purpose: `saving` turns the unsaved-changes guard off.
   const restock = async (coffee: Coffee) => {
     setSaving(true)
-    await restockWithUndo(coffee, restockPlan(coffee, draft).changes)
-    navigate(`/coffee/${coffee.id}`, { replace: true })
+    setFailed(false)
+    try {
+      const newPhoto = photo instanceof Blob ? await uploadPhoto(photo) : undefined
+      await restockWithUndo(coffee, { ...restockPlan(coffee, draft).changes, ...(newPhoto && { photo: newPhoto }) })
+      navigate(`/coffee/${coffee._id}`, { replace: true })
+    } catch {
+      setSaving(false)
+      setFailed(true)
+      setSheet(false)
+    }
   }
   const open = (coffee: Coffee) => {
     setSaving(true)
-    navigate(`/coffee/${coffee.id}`, { replace: true })
+    navigate(`/coffee/${coffee._id}`, { replace: true })
   }
   const addNew = () => {
     setDeclined(key)
     setSheet(false)
   }
 
-  if (!loaded) return null
+  // A malformed, deleted or someone else's id reads as null.
+  if (id && editing === null) return <NotFound />
+  if (id && loadedId !== id) return <Loading />
 
   const origin = dotted(draft.origin, draft.region, draft.process, draft.varietal, draft.producer, draft.altitude)
-  const roast = dotted(draft.roastLevel && `${draft.roastLevel} roast`, draft.bagWeight && `${draft.bagWeight}g`)
+  const roast = dotted(draft.roastLevel && `${roastLabel(draft.roastLevel)} изпичане`, draft.bagWeight && grams(draft.bagWeight))
 
   return (
     <form onSubmit={save} className="pb-8">
-      <Header title={id ? 'Edit coffee' : 'New coffee'} back={id ? `/coffee/${id}` : '/'} onBack={guard} />
+      <Header title={id ? 'Промени кафето' : 'Ново кафе'} back={id ? `/coffee/${id}` : '/'} onBack={guard} />
 
       <div className="space-y-4">
-        <BagScanner front={draft.photo} onFront={(photo) => set('photo', photo)} onScanned={applyScan} onLeave={guard} />
+        <BagScanner
+          front={photo}
+          onFront={(p) => {
+            setDirty(true)
+            setPhoto(p)
+          }}
+          onScanned={applyScan}
+          onLeave={guard}
+        />
 
-        <Section title="The essentials" hint="Enough to find it again">
-          <Field label="Coffee name *">
-            <input className="input" name="coffeeName" autoComplete="off" required placeholder="e.g. Ethiopia Guji Hambela…" value={draft.name} onChange={(e) => set('name', e.target.value)} onBlur={() => setCheck(true)} />
+        <Section title="Основното" hint="Колкото да го намериш пак">
+          <Field label="Име на кафето *">
+            <input className="input" name="coffeeName" autoComplete="off" required placeholder="напр. Ethiopia Guji Hambela…" value={draft.name} onChange={(e) => set('name', e.target.value)} onBlur={() => setCheck(true)} />
           </Field>
-          <Field label="Roaster *">
-            <input className="input" name="roaster" autoComplete="off" required list="roasters" placeholder="e.g. Onyx Coffee Lab…" value={draft.roaster} onChange={(e) => set('roaster', e.target.value)} onBlur={() => setCheck(true)} />
+          <Field label="Пекарна *">
+            <input className="input" name="roaster" autoComplete="off" required list="roasters" placeholder="напр. Onyx Coffee Lab…" value={draft.roaster} onChange={(e) => set('roaster', e.target.value)} onBlur={() => setCheck(true)} />
             <datalist id="roasters">{roasters?.map((r) => <option key={r} value={r} />)}</datalist>
           </Field>
-          <Field label="Tasting notes" group>
-            <TagInput label="Tasting notes" value={draft.tastingNotes} onChange={(v) => set('tastingNotes', v)} placeholder="blueberry, jasmine, cocoa…" />
+          <Field label="Вкусови нотки" group>
+            <TagInput label="Вкусови нотки" value={draft.tastingNotes} onChange={(v) => set('tastingNotes', v)} placeholder="боровинка, жасмин, какао…" />
           </Field>
-          <Field label="Your rating" group>
+          <Field label="Твоята оценка" group>
             <Rating value={draft.rating} onChange={(v) => set('rating', v)} size={28} />
           </Field>
         </Section>
 
-        <Section title="Origin" summary={origin || 'Country, process, varietal — from the label'} collapsible defaultOpen={false}>
+        <Section title="Произход" summary={origin || 'Държава, обработка, сорт: от етикета'} collapsible defaultOpen={false}>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Country">
-              <input className="input" placeholder="Ethiopia" {...text('origin')} />
+            <Field label="Държава">
+              <input className="input" placeholder="Етиопия" {...text('origin')} />
             </Field>
-            <Field label="Region">
+            <Field label="Регион">
               <input className="input" placeholder="Guji" {...text('region')} />
             </Field>
-            <Field label="Process">
-              <input className="input" list="processes" placeholder="Washed" {...text('process')} />
+            <Field label="Обработка">
+              <input className="input" list="processes" placeholder="Измита" {...text('process')} />
               <datalist id="processes">{PROCESSES.map((p) => <option key={p} value={p} />)}</datalist>
             </Field>
-            <Field label="Varietal">
+            <Field label="Сорт">
               <input className="input" placeholder="Heirloom" {...text('varietal')} />
             </Field>
-            <Field label="Producer / farm">
-              <input className="input" placeholder="Washing station" {...text('producer')} />
+            <Field label="Производител">
+              <input className="input" placeholder="Станция за измиване" {...text('producer')} />
             </Field>
-            <Field label="Altitude">
-              <input className="input" placeholder="1900–2100 masl" {...text('altitude')} />
+            <Field label="Височина">
+              <input className="input" placeholder="1900 до 2100 м" {...text('altitude')} />
             </Field>
           </div>
         </Section>
 
-        <Section title="Roast" summary={roast || 'Level and bag size'} collapsible defaultOpen={false}>
-          <Field label="Roast level" group>
+        <Section title="Изпичане" summary={roast || 'Степен и размер на пакета'} collapsible defaultOpen={false}>
+          <Field label="Степен на изпичане" group>
             <Segmented
               value={draft.roastLevel}
               onChange={(v) => set('roastLevel', draft.roastLevel === v ? undefined : v)}
-              options={ROAST_LEVELS.map((r) => ({ value: r, label: r }))}
+              options={ROAST_LEVELS.map((r) => ({ value: r, label: roastLabel(r) }))}
             />
           </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Bag size (g)">
+            <Field label="Пакет (г)">
               <input
                 className="input num"
                 name="bagWeight"
@@ -190,20 +221,25 @@ export default function CoffeeForm() {
           </div>
         </Section>
 
-        <Section title="Notes" summary={draft.notes || 'Where you bought it, price, what to try next'} collapsible defaultOpen={false}>
-          <textarea className="input min-h-24" aria-label="Notes" placeholder="Where you bought it, price, what to try next…" {...text('notes')} />
+        <Section title="Бележки" summary={draft.notes || 'Откъде е, цена, какво да пробваш'} collapsible defaultOpen={false}>
+          <textarea className="input min-h-24" aria-label="Бележки" placeholder="Откъде е, цена, какво да пробваш…" {...text('notes')} />
         </Section>
       </div>
 
       <div className="sticky bottom-0 -mx-4 mt-6 bg-gradient-to-t from-canvas from-60% px-4 pt-6 pb-[max(env(safe-area-inset-bottom),1rem)]">
+        {failed && (
+          <p role="alert" className="mb-2 text-center text-sm font-medium text-bitter">
+            Не се запази. Провери връзката и опитай пак.
+          </p>
+        )}
         {offer && !sheet && offered === key && <ReviewPill matches={matches} onClick={() => setSheet(true)} />}
         <button type="submit" disabled={saving} className="btn-primary w-full !py-3.5">
-          {id ? 'Save changes' : 'Add coffee'}
+          {id ? 'Запази промените' : 'Добави кафето'}
         </button>
       </div>
 
       {offer && sheet && (
-        <WelcomeBackSheet matches={matches} draft={draft} busy={saving} onRestock={(c) => void restock(c)} onOpen={open} onAddNew={addNew} onClose={() => setSheet(false)} />
+        <WelcomeBackSheet matches={matches} draft={draft} newPhoto={photo instanceof Blob} busy={saving} onRestock={(c) => void restock(c)} onOpen={open} onAddNew={addNew} onClose={() => setSheet(false)} />
       )}
     </form>
   )

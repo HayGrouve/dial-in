@@ -1,43 +1,42 @@
-# Dial In ☕
+> **This is the `kafeto` branch: Онова за кафето in progress.** It moves Dial In onto the shared онова за Акаунт, with the log in Convex ([#27](https://github.com/HayGrouve/dial-in/issues/27)). `main` stays the live Dial In on dial-in-three.vercel.app until the single cutover merge. Every Кафето PR targets `kafeto`, never `main`.
 
-A grind-size journal for specialty coffee. Snap the bag, log your shots, pin the setting that tastes right. When you buy that coffee again months later, the number is waiting.
+# Онова за кафето
+
+A grind-size journal for specialty coffee, formerly Dial In. Snap the bag, log your brews, pin the setting that tastes right. When you buy that coffee again months later, the number is waiting. Home Screen name: **Кафето**. The UI is Bulgarian, in informal "ти"; the words it uses are in [GLOSSARY.md](GLOSSARY.md).
 
 ## Features
 
-- **Snap the label** — photograph the front and back of the bag and the details fill themselves in (name, roaster, origin, process, varietal, altitude, roast level, tasting notes, bag size). Gemini reads the label; add your Gemini API key in Settings → Label reading. Only empty fields are filled, so nothing you've typed is overwritten.
-- **Coffee bags** — photo (camera or library, auto-compressed), roaster, origin, region, producer, varietal, process, altitude, roast level, bag size, tasting notes, and a 1–5 star rating for the coffee (tap the stars on its page).
-- **Brews per method** — espresso, turbo, pour over, AeroPress, French press, moka pot, cold brew. Turbo sits between espresso and filter: a coarser, faster shot at around 1:3 in 10–15s. Fields adapt to the method (yield vs water, pre-infusion for espresso and turbo, bloom for filter).
-- **Your grinder, set once** in Settings → Equipment and stamped on every brew. **Any notation** — `14`, `2.5`, `1.5.2` (rotation.number.click), `24 clicks`.
-- **Fellow Opus dial (optional)** — turn on in Settings → Equipment. Adds a big grind wheel to the brew form that works out both the outer and inner ring, including the in-between sizes the inner ring unlocks (every 1/12 of a number). It remembers where your inner ring sits and moves it as little as possible. For the original Opus, not Opus 2.
-- **Dial-in log** — dose, yield, live brew ratio, time, temperature, taste (sour / balanced / bitter with a grind-finer/coarser hint), notes.
-- **"This is the one"** — pin one brew per method as the setting to remember; it shows big on the coffee page and as chips on the shelf.
-- New brews prefill from your last attempt on that coffee, or from your last coffee on that method.
-- Shelf / finished / all filters and search. "Bought it again" puts a finished bag back on the shelf.
-- Offline PWA, installable on your phone. All data stays on-device (IndexedDB); export/import a JSON backup in Settings.
-- Light, dark or follow-the-system theme (Settings → Appearance).
-- Forms and pages are grouped into small sections; optional details fold away and show a one-line summary while closed.
+- **Снимай етикета** (label reading): photograph the front and back of the bag and the details fill themselves in (name, roaster, origin, process, varietal, altitude, roast level, tasting notes, bag size). Gemini reads the label with the key you paste in Настройки → Четене на етикета; origin, process and tasting notes come back in Bulgarian. Only empty fields are filled. The key stays on the device, belongs to whoever pasted it, and Изход or Изтрий данните removes it.
+- **Кафе** (coffee): photo (camera or library, compressed in the browser, kept in Convex file storage), roaster, origin, region, producer, varietal, process, altitude, roast level, bag size, tasting notes, and 1 to 5 stars for the coffee.
+- **Варене per метод** (brews per method): еспресо, турбо, филтър, AeroPress, френска преса, мока, студено извличане, друго. Турбо sits between espresso and filter: a coarser, faster shot at around 1:3 in 10 to 15 s. Fields adapt to the method (напитка or вода, преинфузия for еспресо и турбо, цъфтеж for filter).
+- **Мелачка** set once in Настройки → Уреди and stamped on every brew; any notation (`14`, `2.5`, `1.5.2`, `24 щраквания`). Grinder, Opus switch and inner ring live in your Акаунт, so every device has them.
+- **Колело за Fellow Opus** (optional): a grind wheel on the brew form that works out the outer and inner ring, including the in-between sizes the inner ring unlocks. For the original Opus, not Opus 2.
+- **Настройка** (setting): pin one brew per coffee and method with "Това е то"; it shows big on the coffee page and on the Рафт. Taste (кисело, балансирано, горчиво) suggests which way to move the grind.
+- New brews start from your last try on that coffee, or from your last coffee on that method.
+- **Рафт**, **Свършени** and search. **Купих го пак** puts a свършено coffee back on the Рафт; New coffee offers it back instead of adding a duplicate.
+- **Данни** in Настройки: **Изнеси** (one file with everything, photos included), **Внеси от Dial In** (Dial In and Кафето files; anything already here is skipped), **Изтрий данните** (you stay signed in).
+- Signed in with the shared онова за Акаунт (Clerk); online only, with a "Няма връзка" banner when Convex loses its connection. Light, dark or system theme.
 
 ## Develop
 
 ```sh
 pnpm install
-pnpm dev      # http://localhost:5173
-pnpm build    # typecheck + production build to dist/
+pnpm dev        # http://localhost:5173
+pnpm build      # dash check, typecheck and production build to dist/
+pnpm typecheck  # app and convex/
+pnpm lint
+pnpm test       # Convex function tests (convex-test), import, copy checks
+npx convex dev --once  # push convex/ to the dev deployment (onova-za-kafeto, EU)
 ```
 
-## Deploy to Vercel
+`.env.local` (git-ignored) holds `CONVEX_DEPLOYMENT`, `VITE_CONVEX_URL` and the dev `VITE_CLERK_PUBLISHABLE_KEY` of the "онова за" Clerk app. On Vercel, `scripts/vercel-build.sh` deploys Convex only for Production; previews build the app against the dev deployment.
 
-The repo is ready for Vercel as-is — `vercel.json` sets the build, sends every route to the app (so deep links like `/coffee/…` survive a reload), and keeps the service worker uncached so updates roll out.
+Copy rules: Bulgarian, "ти", no em or en dashes anywhere in `src/` (`pnpm build` and `src/dashes.test.ts` fail on one; write ranges as "25 до 30 с"). Count forms go through `src/lib/count.ts`, roast levels keep their stored English keys and show through `roastLabel`.
 
-1. Push this folder to a GitHub repository.
-2. In Vercel, **Add New → Project**, import the repo, and deploy. No environment variables are needed (label reading uses the API key you enter in the app's Settings).
+## Deploy
 
-Or from the terminal: `pnpm dlx vercel` (preview) and `pnpm dlx vercel --prod`.
-
-Then open the URL on your phone and choose **Add to Home Screen**. It installs as an app, works offline, and the camera opens straight from the "Photo of the bag" button.
-
-Your coffees are stored in the browser on each device, not on Vercel. Use **Settings → Export backup** to move them between devices.
+Vercel project `dial-in`, production from `main` after the cutover ([#35](https://github.com/HayGrouve/dial-in/issues/35)). Production env: `VITE_CLERK_PUBLISHABLE_KEY`, `VITE_CLERK_SIGN_IN_URL`, `VITE_CLERK_SIGN_UP_URL`, `VITE_CONVEX_URL` and `CONVEX_DEPLOY_KEY`; Convex prod: `CLERK_JWT_ISSUER_DOMAIN`, `CLERK_AUTHORIZED_PARTIES`, `CLERK_WEBHOOK_SIGNING_SECRET` (Clerk's `user.deleted` webhook goes to `/clerk/webhook`).
 
 ## Stack
 
-Vite · React 19 · TypeScript · Tailwind CSS 4 · Dexie (IndexedDB) · wouter · vite-plugin-pwa · Gemini API (label reading)
+Vite · React 19 · TypeScript · Tailwind CSS 4 · Convex (log, bag photos, webhook) · Clerk · wouter · Gemini API (label reading, your own key)

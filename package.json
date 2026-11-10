@@ -1,33 +1,39 @@
 {
-  "name": "dial-in",
+  "name": "onova-za-kafeto",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "node scripts/check-dashes.mjs && tsc -b && vite build",
+    "typecheck": "tsc -b && tsc --noEmit -p convex",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "test": "vitest run",
+    "preview": "vite preview",
+    "check:dashes": "node scripts/check-dashes.mjs"
   },
   "dependencies": {
+    "@clerk/react": "^6.18.6",
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
-    "@fontsource-variable/outfit": "^5.3.0",
-    "dexie": "^4.4.6",
-    "dexie-react-hooks": "^4.4.0",
+    "@fontsource-variable/manrope": "^5.3.0",
+    "convex": "^1.49.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "wouter": "^3.11.0"
   },
   "devDependencies": {
+    "@edge-runtime/vm": "^5.0.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
+    "convex-test": "^0.0.60",
     "oxlint": "^1.81.0",
+    "standardwebhooks": "^1.1.1",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
     "vite": "^8.3.0",
-    "vite-plugin-pwa": "^1.3.0"
+    "vitest": "^5.1.0"
   }
 }

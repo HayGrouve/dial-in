@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { fmtInner, fmtOuter, fmtSize, formatOpus, OPUS_MAX, OPUS_MIN, opusMicrons, opusPosition, parseOpus, toTwelfths } from '../lib/opus'
-import { getOpusInner, setOpusInner } from '../lib/prefs'
+import { useEquipment, useSetEquipment } from '../lib/equipment'
 
 const TICK = 14
 const clamp = (t: number) => Math.min(OPUS_MAX, Math.max(OPUS_MIN, t))
@@ -13,7 +13,9 @@ export function OpusDial({ value, fallback, onChange }: { value: string; fallbac
   const ruler = useRef<HTMLDivElement>(null)
   /** Size we jumped to because it was typed in the field; that scroll must not rewrite the field. */
   const typedTo = useRef<number>(undefined)
-  const [home, setHome] = useState(getOpusInner)
+  // Where the inner ring sits, kept in `equipment` so every device knows. The brew form waits for it.
+  const home = useEquipment()?.opusInner ?? 0
+  const setEquipment = useSetEquipment()
   const [size, setSize] = useState(() => {
     const start = parseOpus(value) ?? parseOpus(fallback)
     return start ? toTwelfths(start) : 72
@@ -56,12 +58,12 @@ export function OpusDial({ value, fallback, onChange }: { value: string; fallbac
     <div className="space-y-3 rounded-[20px] border border-line bg-canvas/60 p-3">
       <div className="grid grid-cols-2 gap-2 text-center">
         <div>
-          <div className="label !mb-0.5">Outer ring</div>
-          <div className="num font-mono text-3xl font-semibold">{pos ? fmtOuter(pos.outer) : '—'}</div>
+          <div className="label !mb-0.5">Външен пръстен</div>
+          <div className="num font-mono text-3xl font-semibold">{pos ? fmtOuter(pos.outer) : '·'}</div>
         </div>
         <div>
-          <div className="label !mb-0.5">Inner ring</div>
-          <div className={`num font-mono text-3xl font-semibold ${pos && pos.inner !== home ? 'text-accent-fg' : ''}`}>{pos ? fmtInner(pos.inner) : '—'}</div>
+          <div className="label !mb-0.5">Вътрешен пръстен</div>
+          <div className={`num font-mono text-3xl font-semibold ${pos && pos.inner !== home ? 'text-accent-fg' : ''}`}>{pos ? fmtInner(pos.inner) : '·'}</div>
         </div>
       </div>
 
@@ -70,11 +72,11 @@ export function OpusDial({ value, fallback, onChange }: { value: string; fallbac
           ref={ruler}
           role="slider"
           tabIndex={0}
-          aria-label="Opus grind size"
+          aria-label="Смилане на Opus"
           aria-valuemin={OPUS_MIN / 12}
           aria-valuemax={OPUS_MAX / 12}
           aria-valuenow={size / 12}
-          aria-valuetext={pos ? `Outer ${fmtOuter(pos.outer)}, inner ${fmtInner(pos.inner)}, about ${opusMicrons(size)} microns` : undefined}
+          aria-valuetext={pos ? `Външен ${fmtOuter(pos.outer)}, вътрешен ${fmtInner(pos.inner)}, около ${opusMicrons(size)} микрона` : undefined}
           onScroll={onScroll}
           onKeyDown={(e) => {
             const d = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1, PageDown: -3, PageUp: 3 }[e.key]
@@ -103,35 +105,32 @@ export function OpusDial({ value, fallback, onChange }: { value: string; fallbac
 
       <div className="flex items-center gap-2">
         <button type="button" className="btn-ghost !px-4" onClick={() => step(-1)} disabled={size <= OPUS_MIN}>
-          − Finer
+          − По-фино
         </button>
         <div className="num flex-1 text-center text-sm leading-tight text-muted">
-          Size <span className="font-semibold text-ink">{fmtSize(size)}</span>
+          Размер <span className="font-semibold text-ink">{fmtSize(size)}</span>
           <div className="text-xs">≈ {opusMicrons(size)}&nbsp;µm</div>
         </div>
         <button type="button" className="btn-ghost !px-4" onClick={() => step(1)} disabled={size >= OPUS_MAX}>
-          Coarser +
+          По-едро +
         </button>
       </div>
 
       {pos && pos.inner !== home ? (
         <div className="flex items-center gap-3 rounded-lg bg-accent/10 p-2.5 text-sm">
           <p className="flex-1">
-            Move the inner ring from <b className="num">{fmtInner(home)}</b> to <b className="num">{fmtInner(pos.inner)}</b> — it sits under the load bin.
+            Премести вътрешния пръстен от <b className="num">{fmtInner(home)}</b> на <b className="num">{fmtInner(pos.inner)}</b>. Той е под фунията.
           </p>
           <button
             type="button"
             className="btn-ghost shrink-0 !px-3 !py-1.5"
-            onClick={() => {
-              setOpusInner(pos.inner)
-              setHome(pos.inner)
-            }}
+            onClick={() => void setEquipment({ opusInner: pos.inner })}
           >
-            Done
+            Готово
           </button>
         </div>
       ) : (
-        <p className="text-xs text-muted">Short amber ticks are the in-between sizes the inner ring unlocks.</p>
+        <p className="text-xs text-muted">Късите кехлибарени чертички са междинните размери, които вътрешният пръстен отключва.</p>
       )}
     </div>
   )
