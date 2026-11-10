@@ -26,9 +26,14 @@ export async function assertPhotoUsable(ctx: MutationCtx, subject: string, photo
  * The coffee's photo changes from `before` to `after`. The old file stays in
  * storage for the sweep (`files.sweep`), so Undo can put it back.
  */
-export async function releasePhoto(ctx: MutationCtx, before: Id<'_storage'> | undefined, after: Id<'_storage'> | undefined) {
+export async function releasePhoto(
+  ctx: MutationCtx,
+  subject: string,
+  before: Id<'_storage'> | undefined,
+  after: Id<'_storage'> | undefined,
+) {
   if (!before || before === after) return
-  await ctx.db.insert('releasedPhotos', { storageId: before, releasedAt: Date.now() })
+  await ctx.db.insert('releasedPhotos', { storageId: before, releasedAt: Date.now(), ownerSubject: subject })
 }
 
 /** Deletes a file now, unless another coffee still holds it. */

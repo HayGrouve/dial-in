@@ -2,6 +2,7 @@ import { useAuth } from '@clerk/react'
 import { useQuery } from 'convex/react'
 import { useState } from 'react'
 import { api } from '../../convex/_generated/api'
+import DataSection from '../components/DataSection'
 import { Moon, Monitor, Sun } from '../components/icons'
 import { Field, Header, Loading, Section, Toggle } from '../components/ui'
 import { arrowKeys } from '../lib/a11y'
@@ -22,8 +23,6 @@ const THEMES: { value: ThemePref; label: string; icon: typeof Sun }[] = [
   { value: 'light', label: 'Light', icon: Sun },
   { value: 'dark', label: 'Dark', icon: Moon },
 ]
-
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 
 export default function Settings() {
   const counts = useQuery(api.data.counts)
@@ -125,7 +124,7 @@ export default function Settings() {
             />
           </Field>
           <p lang="bg" className="text-sm text-ink">
-            Ключът остава само на това устройство. Изход го изтрива.
+            Ключът остава само на това устройство. Изход и Изтрий данните го изтриват.
           </p>
           <p className="text-sm text-muted">
             Bag photos are sent to Google Gemini to read the label. The key is not included in backups. Get one at{' '}
@@ -136,9 +135,7 @@ export default function Settings() {
           </p>
         </Section>
 
-        <Section title="Your data" hint={counts && `${plural(counts.coffees, 'coffee')} · ${plural(counts.brews, 'brew')}`}>
-          <p className="text-sm text-muted">Дневникът ти се пази в акаунта ти и е същият на всяко устройство. Вносът и износът идват скоро.</p>
-        </Section>
+        <DataSection counts={counts} onErase={() => setApiKeyDraft('')} />
 
         <Section title="Dial-in cheat sheet" summary="Five rules for dialing in a new bag" collapsible defaultOpen={false}>
           <ol className="space-y-3">
