@@ -107,7 +107,7 @@ export default function Settings() {
           />
         </Section>
 
-        <Section title="Четене на етикета" hint="Попълва новите кафета от снимки на пакета">
+        <Section title="Четене на етикета" hint="Попълва новите кафета от снимки">
           <Field label="Ключ за Gemini API">
             <input
               className="input"
