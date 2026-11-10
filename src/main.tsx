@@ -1,10 +1,11 @@
-import { ClerkProvider, useAuth } from '@clerk/react'
+import { ClerkProvider } from '@clerk/react'
 import { ConvexProviderWithClerk } from 'convex/react-clerk'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import { clerkUrls } from './lib/clerk'
+import { useAuthForConvex } from './lib/convex-auth'
 import { convex } from './lib/convex'
 import { initTheme } from './lib/theme'
 
@@ -24,7 +25,7 @@ createRoot(document.getElementById('root')!).render(
       signUpUrl={signUpUrl}
       afterSignOutUrl="/"
     >
-      <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
+      <ConvexProviderWithClerk client={convex} useAuth={useAuthForConvex}>
         <App />
       </ConvexProviderWithClerk>
     </ClerkProvider>
