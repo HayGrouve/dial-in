@@ -1,10 +1,26 @@
+import type { FunctionArgs, FunctionReturnType } from 'convex/server'
 import { useSyncExternalStore } from 'react'
-import { finishCoffee, restockCoffee, type Coffee, type Undo } from './db'
+import { api } from '../../convex/_generated/api'
+import { convex } from './convex'
+import type { Coffee } from './db'
+
+/** Puts back what a reversible action changed. */
+export type Undo = () => Promise<void>
+
+/** What a new bag brings on Bought it again: a photo, details to fill in. */
+export type RestockChanges = NonNullable<FunctionArgs<typeof api.coffees.restock>['changes']>
+
+/** Finish and Restock return the fields they replaced; Undo hands them back to `coffees.restore`. */
+const undoWith =
+  (replaced: FunctionReturnType<typeof api.coffees.finish>): Undo =>
+  async () => {
+    await convex.mutation(api.coffees.restore, replaced)
+  }
 
 /** An action that just happened, with a way to take it back. */
 export interface Toast {
   id: number
-  /** What happened, set apart from the coffee name: "Finished", "Back on the shelf:". */
+  /** What happened, set apart from the coffee name: "Свърши:", "Пак на рафта:". */
   lead: string
   name: string
   undo: Undo
@@ -39,13 +55,18 @@ export function useToast() {
 }
 
 /** Finishes a coffee and offers to undo it. */
-export async function finishWithUndo(coffee: Pick<Coffee, 'id' | 'name'>) {
-  showToast({ lead: 'Finished', name: coffee.name, undo: await finishCoffee(coffee.id) })
+export async function finishWithUndo(coffee: Pick<Coffee, '_id' | 'name'>) {
+  const replaced = await convex.mutation(api.coffees.finish, { id: coffee._id })
+  showToast({ lead: 'Свърши:', name: coffee.name, undo: undoWith(replaced) })
 }
 
-/** Puts a finished coffee back on the shelf and offers to undo it. See `restockCoffee` for `changes`. */
-export async function restockWithUndo(coffee: Pick<Coffee, 'id' | 'name'>, changes?: Parameters<typeof restockCoffee>[1]) {
-  showToast({ lead: 'Back on the shelf:', name: coffee.name, undo: await restockCoffee(coffee.id, changes) })
+/**
+ * Puts a finished coffee back on the shelf and offers to undo it. `changes` carries anything the
+ * new bag brings (an uploaded photo, details to fill in); undo restores the previous record exactly.
+ */
+export async function restockWithUndo(coffee: Pick<Coffee, '_id' | 'name'>, changes?: RestockChanges) {
+  const replaced = await convex.mutation(api.coffees.restock, { id: coffee._id, changes })
+  showToast({ lead: 'Пак на рафта:', name: coffee.name, undo: undoWith(replaced) })
 }
 
 /**

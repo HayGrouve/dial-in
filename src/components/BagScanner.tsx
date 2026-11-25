@@ -1,7 +1,9 @@
-import { useRef, useState, type MouseEvent } from 'react'
+import { useAuth } from '@clerk/react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { Link } from 'wouter'
 import { compressImage } from '../lib/image'
-import { getApiKey } from '../lib/prefs'
+import { getGeminiKey } from '../lib/gemini-key'
+import { count as nounCount } from '../lib/count'
 import type { ScannedFields } from '../lib/scan'
 import { Camera, Close } from './icons'
 import { BagPhoto } from './ui'
@@ -24,7 +26,8 @@ export function BagScanner({
   onScanned,
   onLeave,
 }: {
-  front?: Blob
+  /** A photo taken here (Blob), or the stored photo's URL on Edit coffee. */
+  front?: Blob | string
   onFront: (b: Blob | undefined) => void
   onScanned: (fields: ScannedFields) => void
   /** Click handler for the link that leaves the form, e.g. an unsaved-changes guard. */
@@ -36,24 +39,28 @@ export function BagScanner({
   const [busy, setBusy] = useState<Side>()
   const [status, setStatus] = useState<Status>({ kind: 'idle' })
   const run = useRef(0)
-  const hasKey = !!getApiKey()
+  const { userId } = useAuth()
+  const apiKey = getGeminiKey(userId)
+  const hasKey = !!apiKey
 
-  const scan = async (photos: Blob[]) => {
+  const scan = async (photos: (Blob | string)[]) => {
     const id = ++run.current
     setStatus({ kind: 'reading' })
     try {
       const { scanBag } = await import('../lib/scan')
-      const fields = await scanBag(getApiKey(), photos)
+      // The stored front photo on Edit coffee is a URL; Gemini needs its bytes.
+      const blobs = await Promise.all(photos.map(async (p) => (typeof p === 'string' ? (await fetch(p)).blob() : p)))
+      const fields = await scanBag(apiKey, blobs)
       if (id !== run.current) return
       onScanned(fields)
       const found = Object.values(fields).filter((v) => (Array.isArray(v) ? v.length : v != null)).length
       setStatus({ kind: 'done', found })
     } catch (e) {
-      if (id === run.current) setStatus({ kind: 'error', message: e instanceof Error ? e.message : 'Label reading failed.' })
+      if (id === run.current) setStatus({ kind: 'error', message: e instanceof Error ? e.message : 'Четенето на етикета не стана.' })
     }
   }
 
-  const photosFor = (s: { front?: Blob; back?: Blob }) => [s.front ?? front, s.back].filter((b): b is Blob => !!b)
+  const photosFor = (s: { front?: Blob; back?: Blob }) => [s.front ?? front, s.back].filter((b): b is Blob | string => !!b)
 
   const take = async (side: Side, file?: File) => {
     if (!file) return
@@ -93,25 +100,25 @@ export function BagScanner({
         {!hasKey ? (
           count > 0 && (
             <>
-              <Link href="/settings" onClick={onLeave} className="font-semibold text-accent-fg underline">Add an API key</Link> to fill in the details from these photos.
+              <Link href="/settings" onClick={onLeave} className="font-semibold text-accent-fg underline">Добави ключ за Gemini</Link>, за да се попълнят подробностите от снимките.
             </>
           )
         ) : status.kind === 'reading' ? (
-          <span className="font-medium motion-safe:animate-pulse text-accent-fg">Reading the label…</span>
+          <span className="font-medium motion-safe:animate-pulse text-accent-fg">Чета етикета…</span>
         ) : status.kind === 'done' ? (
-          status.found ? `Found ${status.found} details on the label. Give them a quick check.` : 'Nothing readable on the label. Try a sharper photo.'
+          status.found ? `Намерих ${nounCount(status.found, 'подробност', 'подробности')} на етикета. Провери ги набързо.` : 'Нищо четимо на етикета. Опитай с по-ясна снимка.'
         ) : status.kind === 'error' ? (
           <>
             <span className="text-red-700 dark:text-red-400">{status.message}</span>{' '}
-            <button type="button" className="font-semibold text-accent-fg underline" onClick={() => void scan(photosFor(sources))}>Retry</button>
+            <button type="button" className="font-semibold text-accent-fg underline" onClick={() => void scan(photosFor(sources))}>Опитай пак</button>
           </>
         ) : count === 0 ? (
-          'Snap the front and back. The details fill themselves in.'
+          'Снимай лицето и гърба. Подробностите се попълват сами.'
         ) : (
           <>
-            {back ? 'Now the front, ' : 'Now the back, '}
-            or{' '}
-            <button type="button" className="font-semibold text-accent-fg underline" onClick={() => void scan(photosFor(sources))}>read this one</button>
+            {back ? 'Снимай и лицето ' : 'Снимай и гърба '}
+            или{' '}
+            <button type="button" className="font-semibold text-accent-fg underline" onClick={() => void scan(photosFor(sources))}>прочети само тази</button>
           </>
         )}
       </div>
@@ -119,10 +126,11 @@ export function BagScanner({
   )
 }
 
-function Slot({ side, photo, busy, onFile, onRemove }: { side: Side; photo?: Blob; busy: boolean; onFile: (f?: File) => void; onRemove: () => void }) {
+function Slot({ side, photo, busy, onFile, onRemove }: { side: Side; photo?: Blob | string; busy: boolean; onFile: (f?: File) => void; onRemove: () => void }) {
   const cameraRef = useRef<HTMLInputElement>(null)
   const libraryRef = useRef<HTMLInputElement>(null)
-  const label = side === 'front' ? 'Front' : 'Back'
+  const label = side === 'front' ? 'Лице' : 'Гръб'
+  const ofBag = side === 'front' ? 'Лицето на пакета' : 'Гърбът на пакета'
 
   const input = (ref: typeof cameraRef, capture?: boolean) => (
     <input
@@ -144,11 +152,15 @@ function Slot({ side, photo, busy, onFile, onRemove }: { side: Side; photo?: Blo
     <div>
       {photo ? (
         <div className="relative">
-          <BagPhoto blob={photo} alt={`${label} of the bag`} className="aspect-[4/5] w-full rounded-[20px] border border-line" />
+          {typeof photo === 'string' ? (
+            <BagPhoto src={photo} alt={ofBag} className="aspect-[4/5] w-full rounded-[20px] border border-line" />
+          ) : (
+            <PickedPhoto blob={photo} alt={ofBag} className="aspect-[4/5] w-full rounded-[20px] border border-line object-cover" />
+          )}
           <span className="absolute top-2 left-2 rounded-full bg-ink/75 px-2.5 py-1 text-xs font-semibold text-canvas backdrop-blur">{label}</span>
           <div className="absolute inset-x-2 bottom-2 flex justify-center gap-1.5">
-            <button type="button" className={pill} onClick={() => cameraRef.current?.click()} aria-label={`Retake ${side} photo`}>Retake</button>
-            <button type="button" className={pill} onClick={onRemove} aria-label={`Remove ${side} photo`}><Close width={14} height={14} /></button>
+            <button type="button" className={pill} onClick={() => cameraRef.current?.click()} aria-label={side === 'front' ? 'Снимай лицето пак' : 'Снимай гърба пак'}>Снимай пак</button>
+            <button type="button" className={pill} onClick={onRemove} aria-label={side === 'front' ? 'Махни снимката на лицето' : 'Махни снимката на гърба'}><Close width={14} height={14} /></button>
           </div>
         </div>
       ) : (
@@ -157,13 +169,13 @@ function Slot({ side, photo, busy, onFile, onRemove }: { side: Side; photo?: Blo
             type="button"
             onClick={() => cameraRef.current?.click()}
             className="grid h-14 w-14 place-items-center rounded-full bg-accent/15 text-accent-fg hover:bg-accent/25"
-            aria-label={`Photograph the ${side}`}
+            aria-label={side === 'front' ? 'Снимай лицето' : 'Снимай гърба'}
           >
             <Camera width={26} height={26} />
           </button>
-          <div className="text-sm font-semibold" aria-live="polite">{busy ? 'Processing…' : `${label} of the bag`}</div>
+          <div className="text-sm font-semibold" aria-live="polite">{busy ? 'Обработвам…' : ofBag}</div>
           <button type="button" className="text-xs font-medium text-muted underline" onClick={() => libraryRef.current?.click()}>
-            From library
+            От галерията
           </button>
         </div>
       )}
@@ -171,4 +183,16 @@ function Slot({ side, photo, busy, onFile, onRemove }: { side: Side; photo?: Blo
       {input(libraryRef)}
     </div>
   )
+}
+
+/** A photo taken here and not uploaded yet. Object URLs are an external resource: one per blob, revoked on change. */
+function PickedPhoto({ blob, alt, className }: { blob: Blob; alt: string; className: string }) {
+  const img = useRef<HTMLImageElement>(null)
+  useEffect(() => {
+    if (!img.current) return
+    const url = URL.createObjectURL(blob)
+    img.current.src = url
+    return () => URL.revokeObjectURL(url)
+  }, [blob])
+  return <img ref={img} alt={alt} className={className} />
 }

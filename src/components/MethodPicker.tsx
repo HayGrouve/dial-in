@@ -3,7 +3,7 @@ import type { BrewMethod } from '../lib/db'
 import { METHODS, METHOD_ORDER } from '../lib/methods'
 import { Check, Chevron } from './icons'
 
-/** Methods shown as chips; the rest live in the "More" menu. */
+/** Methods shown as chips; the rest live in the "Още" menu. */
 const PRIMARY: BrewMethod[] = ['espresso', 'turbo', 'pourover']
 const SECONDARY = METHOD_ORDER.filter((m) => !PRIMARY.includes(m))
 
@@ -46,7 +46,7 @@ export function MethodPicker({ value, onChange }: { value: BrewMethod; onChange:
   }
 
   return (
-    <div className="mb-4 flex gap-1.5" role="group" aria-label="Brew method">
+    <div className="mb-4 flex gap-1.5" role="group" aria-label="Метод">
       {/* Scrolls sideways on narrow phones instead of wrapping; More stays outside so its menu isn't clipped. */}
       <div className="-m-1 flex min-w-0 gap-1.5 overflow-x-auto p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {PRIMARY.map((k) => (
@@ -71,12 +71,12 @@ export function MethodPicker({ value, onChange }: { value: BrewMethod; onChange:
           }}
           className={chip(secondaryActive)}
         >
-          {secondaryActive ? METHODS[value].label : 'More'}
+          {secondaryActive ? METHODS[value].label : 'Още'}
           <Chevron width={16} height={16} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
 
         {open && (
-          <div ref={menu} role="menu" aria-label="More brew methods" onKeyDown={onMenuKey} className="absolute top-full right-0 z-30 mt-1.5 w-44 overflow-hidden rounded-[20px] border border-line bg-surface py-1 shadow-lg shadow-black/20">
+          <div ref={menu} role="menu" aria-label="Още методи" onKeyDown={onMenuKey} className="absolute top-full right-0 z-30 mt-1.5 w-52 overflow-hidden rounded-[20px] border border-line bg-surface py-1 shadow-lg shadow-black/20">
             {SECONDARY.map((k) => (
               <button
                 key={k}

@@ -1,6 +1,6 @@
 export type ThemePref = 'system' | 'light' | 'dark'
 
-const KEY = 'dial-in-theme'
+const KEY = 'kafeto-theme'
 const media = window.matchMedia('(prefers-color-scheme: dark)')
 
 export function getThemePref(): ThemePref {

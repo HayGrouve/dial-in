@@ -12,7 +12,7 @@ export function useLeaveGuard(dirty: boolean) {
     return () => window.removeEventListener('beforeunload', onUnload)
   }, [dirty])
   return (e: MouseEvent) => {
-    if (dirty && !confirm('Discard your changes?')) e.preventDefault()
+    if (dirty && !confirm('Излизаш, без да запазиш промените?')) e.preventDefault()
   }
 }
 

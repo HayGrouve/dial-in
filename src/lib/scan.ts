@@ -38,15 +38,16 @@ interface GeminiRawLabel {
 const PROMPT = `These are photos of one specialty coffee bag (front, and usually back). Extract what is printed on the label.
 
 Only report what the label shows. Leave a field out if it is not visible or not legible; never guess from general coffee knowledge.
-- name: the coffee's own name as printed (e.g. "Ethiopia Guji Hambela", "Finca El Paraíso", or a blend name), without the roaster's name.
-- roaster: the roasting company.
-- origin: the country, in English. region: the region, district or town within it.
-- producer: the farm, estate, washing station, cooperative or producer name.
+The app is in Bulgarian. Names stay as printed; origin, process and tasting notes are written in Bulgarian.
+- name: the coffee's own name as printed (e.g. "Ethiopia Guji Hambela", "Finca El Paraíso", or a blend name), without the roaster's name. Do not translate it.
+- roaster: the roasting company, as printed.
+- origin: the country, in Bulgarian (e.g. "Етиопия", "Колумбия", "Кения"). region: the region, district or town within it, as printed.
+- producer: the farm, estate, washing station, cooperative or producer name, as printed.
 - varietal: varieties as printed, comma-separated if several.
-- process: use one of ${PROCESSES.join(', ')} when it matches; otherwise the process as printed.
-- altitude: in the form "1900–2100 masl" or "1950 masl".
+- process: in Bulgarian. Use one of ${PROCESSES.join(', ')} when it matches; otherwise translate the process into Bulgarian.
+- altitude: in the form "1900 до 2100 м" or "1950 м".
 - roastLevel: only if the label states a roast level or shows a marked roast scale; map it to the closest allowed value. "Filter" / "omni" / "espresso" roast labels are not roast levels.
-- tastingNotes: the flavour notes, each short and lowercase (e.g. "blueberry", "milk chocolate"). Empty array if none.
+- tastingNotes: the flavour notes in Bulgarian, each short and lowercase (e.g. "боровинка", "млечен шоколад"). Empty array if none.
 - bagWeightGrams: net weight in grams (convert ounces or kilograms).`
 
 /** Downscaled base64 JPEG, small enough to upload quickly while keeping label text legible. */
@@ -78,7 +79,7 @@ export async function scanBag(apiKey: string, photos: Blob[]): Promise<ScannedFi
       }),
     })
   } catch {
-    throw new Error('No connection. Label reading needs internet.')
+    throw new Error('Няма връзка. Четенето на етикета иска интернет.')
   }
   if (!response.ok) throw new Error(describeError(response.status, await response.text()))
 
@@ -86,7 +87,7 @@ export async function scanBag(apiKey: string, photos: Blob[]): Promise<ScannedFi
     candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>
   }
   const text = json.candidates?.[0]?.content?.parts?.[0]?.text
-  if (!text) throw new Error('Could not read the label. Try a sharper photo.')
+  if (!text) throw new Error('Етикетът не се прочете. Опитай с по-ясна снимка.')
   const label = JSON.parse(text) as GeminiRawLabel
 
   const str = (v?: string) => v?.trim() || undefined
@@ -106,7 +107,7 @@ export async function scanBag(apiKey: string, photos: Blob[]): Promise<ScannedFi
 }
 
 function describeError(status: number, body: string) {
-  if (status === 403 || body.includes('API_KEY_INVALID')) return 'Your Gemini API key was rejected. Check it in Settings.'
-  if (status === 429) return 'Too many requests right now. Try again in a minute.'
-  return `Label reading failed (${status}). Try again.`
+  if (status === 403 || body.includes('API_KEY_INVALID')) return 'Ключът ти за Gemini не беше приет. Провери го в Настройки.'
+  if (status === 429) return 'Твърде много заявки в момента. Опитай пак след минута.'
+  return `Четенето на етикета не стана (${status}). Опитай пак.`
 }

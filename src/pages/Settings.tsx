@@ -1,56 +1,61 @@
-import { useLiveQuery } from 'dexie-react-hooks'
-import { useRef, useState } from 'react'
+import { useAuth } from '@clerk/react'
+import { useQuery } from 'convex/react'
+import { useState } from 'react'
+import { api } from '../../convex/_generated/api'
+import DataSection from '../components/DataSection'
 import { Moon, Monitor, Sun } from '../components/icons'
-import { Field, Header, Section, Toggle } from '../components/ui'
+import { Field, Header, Loading, Section, Toggle } from '../components/ui'
 import { arrowKeys } from '../lib/a11y'
-import { exportBackup, importBackup } from '../lib/backup'
-import { db } from '../lib/db'
-import { getApiKey, getGrinder, getOpusDial, setApiKey, setGrinder, setOpusDial } from '../lib/prefs'
+import { useEquipment, useSetEquipment } from '../lib/equipment'
+import { getGeminiKey, setGeminiKey } from '../lib/gemini-key'
 import { getThemePref, setThemePref, type ThemePref } from '../lib/theme'
 
 const CHEAT_SHEET = [
-  ['Start from a recipe', 'Espresso: 18g in → 36g out (1:2) in 25–30s. Turbo: 18g in → 54g out (1:3) in 10–15s, ground coarser. Pour over: 1:15–1:17.'],
-  ['Change one thing at a time', 'Hold dose and yield steady; move only the grind until time lands in range.'],
-  ['Sour, thin, fast?', 'Under-extracted. Grind finer.'],
-  ['Bitter, harsh, dry?', 'Over-extracted. Grind coarser.'],
-  ['Then fine-tune by taste', 'Once time is in range, nudge the ratio longer for clarity or shorter for body.'],
+  ['Започни от рецепта', 'Еспресо: 18 г кафе → 36 г напитка (1:2) за 25 до 30 с. Турбо: 18 г → 54 г (1:3) за 10 до 15 с, смляно по-едро. Филтър: 1:15 до 1:17.'],
+  ['Променяй по едно нещо', 'Дръж дозата и напитката същите; мести само смилането, докато времето влезе в целта.'],
+  ['Кисело, водно, бързо?', 'Недоизвлечено. Смели по-фино.'],
+  ['Горчиво, грубо, сухо?', 'Преизвлечено. Смели по-едро.'],
+  ['После донастрой на вкус', 'Щом времето е в целта, удължи съотношението за повече яснота или го скъси за повече тяло.'],
 ]
 
 const THEMES: { value: ThemePref; label: string; icon: typeof Sun }[] = [
-  { value: 'system', label: 'System', icon: Monitor },
-  { value: 'light', label: 'Light', icon: Sun },
-  { value: 'dark', label: 'Dark', icon: Moon },
+  { value: 'system', label: 'Системна', icon: Monitor },
+  { value: 'light', label: 'Светла', icon: Sun },
+  { value: 'dark', label: 'Тъмна', icon: Moon },
 ]
 
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
-
 export default function Settings() {
-  const counts = useLiveQuery(async () => ({ coffees: await db.coffees.count(), brews: await db.brews.count() }))
-  const fileRef = useRef<HTMLInputElement>(null)
-  const [message, setMessage] = useState<string>()
+  const counts = useQuery(api.data.counts)
+  const equipment = useEquipment()
+  const setEquipment = useSetEquipment()
   const [theme, setTheme] = useState(getThemePref)
-  const [grinder, setGrinderDraft] = useState(getGrinder)
-  const [apiKey, setApiKeyDraft] = useState(getApiKey)
-  const [opusDial, setOpusDialDraft] = useState(getOpusDial)
+  // What is typed in the grinder field; Convex trims it, so the field keeps its own copy while you type.
+  const [grinder, setGrinderDraft] = useState<string>()
+  const { userId } = useAuth()
+  const [apiKey, setApiKeyDraft] = useState(() => getGeminiKey(userId))
+  // Someone else signed in from another tab or the hub: their field starts empty.
+  const [keyFor, setKeyFor] = useState(userId)
+  if (keyFor !== userId) {
+    setKeyFor(userId)
+    setApiKeyDraft(getGeminiKey(userId))
+  }
 
-  const onImport = async (file?: File) => {
-    if (!file) return
-    try {
-      const r = await importBackup(file)
-      setGrinderDraft(getGrinder())
-      setMessage(`Imported ${plural(r.coffees, 'coffee')} and ${plural(r.brews, 'brew')}.`)
-    } catch (e) {
-      setMessage(e instanceof Error ? e.message : 'Import failed.')
-    }
+  if (!equipment) {
+    return (
+      <>
+        <Header back="/" title="Настройки" />
+        <Loading />
+      </>
+    )
   }
 
   return (
     <>
-      <Header back="/" title="Settings" />
+      <Header back="/" title="Настройки" />
 
       <div className="space-y-4">
-        <Section title="Appearance">
-          <div role="radiogroup" aria-label="Theme" onKeyDown={arrowKeys} className="grid grid-cols-3 gap-2">
+        <Section title="Изглед">
+          <div role="radiogroup" aria-label="Тема" onKeyDown={arrowKeys} className="grid grid-cols-3 gap-2">
             {THEMES.map(({ value, label, icon: Icon }) => {
               const active = theme === value
               return (
@@ -76,37 +81,34 @@ export default function Settings() {
           </div>
         </Section>
 
-        <Section title="Equipment" hint="Used for every new brew">
-          <Field label="Grinder">
+        <Section title="Уреди" hint="За всяко ново варене, на всяко устройство">
+          <Field label="Мелачка">
             <input
               className="input"
               name="grinder"
               autoComplete="off"
-              placeholder="e.g. Niche Zero, Comandante C40…"
-              value={grinder}
+              placeholder="напр. Niche Zero, Comandante C40…"
+              value={grinder ?? equipment.grinder}
               onChange={(e) => {
                 setGrinderDraft(e.target.value)
-                setGrinder(e.target.value)
+                void setEquipment({ grinder: e.target.value })
               }}
             />
           </Field>
           <Toggle
-            checked={opusDial}
-            onChange={(v) => {
-              setOpusDial(v)
-              setOpusDialDraft(v)
-            }}
+            checked={equipment.opusDial}
+            onChange={(v) => void setEquipment({ opusDial: v })}
             label={
               <span>
-                <span className="block font-semibold">Fellow Opus dial</span>
-                <span className="text-sm text-muted">A grind wheel on the brew form that works out both rings, including the in-between sizes. For the original Opus, not Opus 2.</span>
+                <span className="block font-semibold">Колело за Fellow Opus</span>
+                <span className="text-sm text-muted">Колело за смилане във формата за варене, което смята и двата пръстена, с междинните размери. За първия Opus, не за Opus 2.</span>
               </span>
             }
           />
         </Section>
 
-        <Section title="Label reading" hint="Fill in new coffees from photos of the bag">
-          <Field label="Gemini API key">
+        <Section title="Четене на етикета" hint="Попълва новите кафета от снимки">
+          <Field label="Ключ за Gemini API">
             <input
               className="input"
               type="password"
@@ -117,12 +119,15 @@ export default function Settings() {
               value={apiKey}
               onChange={(e) => {
                 setApiKeyDraft(e.target.value)
-                setApiKey(e.target.value)
+                setGeminiKey(e.target.value, userId)
               }}
             />
           </Field>
+          <p className="text-sm text-ink">
+            Ключът остава само на това устройство. Изход и Изтрий данните го изтриват.
+          </p>
           <p className="text-sm text-muted">
-            Bag photos are sent to Google Gemini to read the label. The key stays on this device and is not included in backups. Get one at{' '}
+            Снимките на пакета отиват в Google Gemini, за да се прочете етикетът. Ключът не влиза във файла от Изнеси. Вземи си от{' '}
             <a className="font-semibold text-accent-fg underline" href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">
               Google AI Studio
             </a>
@@ -130,23 +135,9 @@ export default function Settings() {
           </p>
         </Section>
 
-        <Section title="Your data" hint={counts && `${plural(counts.coffees, 'coffee')} · ${plural(counts.brews, 'brew')}`}>
-          <p className="text-sm text-muted">Everything lives only on this device. Export a backup now and then, or to move to a new phone.</p>
-          <div className="grid grid-cols-2 gap-2">
-            <button className="btn-primary" onClick={() => void exportBackup()}>
-              Export backup
-            </button>
-            <button className="btn-ghost" onClick={() => fileRef.current?.click()}>
-              Import backup
-            </button>
-          </div>
-          <input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={(e) => void onImport(e.target.files?.[0])} />
-          <p className="text-sm font-medium text-accent-fg empty:sr-only" role="status">
-            {message}
-          </p>
-        </Section>
+        <DataSection counts={counts} onErase={() => setApiKeyDraft('')} />
 
-        <Section title="Dial-in cheat sheet" summary="Five rules for dialing in a new bag" collapsible defaultOpen={false}>
+        <Section title="Как да настроиш ново кафе" summary="Пет правила за нов пакет" collapsible defaultOpen={false}>
           <ol className="space-y-3">
             {CHEAT_SHEET.map(([title, body], i) => (
               <li key={title} className="flex gap-3">

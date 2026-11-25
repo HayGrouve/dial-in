@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import { Link } from 'wouter'
+import { count } from '../lib/count'
 import { Back, Bean, Chevron, Close, Star } from './icons'
 
 export function Header({ title, back, right, onBack }: { title?: ReactNode; back?: string; right?: ReactNode; onBack?: (e: MouseEvent) => void }) {
   return (
     <header className="sticky top-0 z-20 -mx-4 mb-4 flex items-center gap-2 bg-canvas/85 px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-3 backdrop-blur">
       {back && (
-        <Link href={back} onClick={onBack} className="-ml-2 rounded-full p-2 text-muted hover:text-ink" aria-label="Back">
+        <Link href={back} onClick={onBack} className="-ml-2 rounded-full p-2 text-muted hover:text-ink" aria-label="Назад">
           <Back />
         </Link>
       )}
@@ -44,7 +45,8 @@ export function Section({
   const heading = (
     <div className="min-w-0 flex-1">
       <h2 className="text-lg leading-tight font-semibold tracking-tight">{title}</h2>
-      {sub && <p className="mt-0.5 truncate text-sm text-muted">{sub}</p>}
+      {/* Two lines, so short copy on a narrow phone wraps instead of losing its last word. */}
+      {sub && <p className="mt-0.5 line-clamp-2 text-sm text-muted">{sub}</p>}
     </div>
   )
 
@@ -123,7 +125,7 @@ export function Toggle({ checked, onChange, label }: { checked: boolean; onChang
 }
 
 export function Rating({ value, onChange, size = 22 }: { value?: number; onChange?: (v: number | undefined) => void; size?: number }) {
-  const read = onChange ? { role: 'group', 'aria-label': 'Rating' } : { role: 'img', 'aria-label': value ? `${value} of 5 stars` : 'Not rated' }
+  const read = onChange ? { role: 'group', 'aria-label': 'Оценка' } : { role: 'img', 'aria-label': value ? `${value} от 5 звезди` : 'Без оценка' }
   return (
     <div className="flex gap-0.5 text-accent" {...read}>
       {[1, 2, 3, 4, 5].map((n) =>
@@ -131,7 +133,7 @@ export function Rating({ value, onChange, size = 22 }: { value?: number; onChang
           <button
             key={n}
             type="button"
-            aria-label={n === 1 ? '1 star' : `${n} stars`}
+            aria-label={count(n, 'звезда', 'звезди')}
             aria-pressed={value === n}
             onClick={() => onChange(value === n ? undefined : n)}
             className="rounded-full p-0.5 hover:brightness-110"
@@ -162,7 +164,7 @@ export function TagInput({ value, onChange, placeholder, label }: { value: strin
           type="button"
           onClick={() => onChange(value.filter((v) => v !== t))}
           className="rounded-full bg-accent/15 px-2.5 py-0.5 text-sm text-accent-fg hover:bg-accent/25"
-          aria-label={`Remove ${t}`}
+          aria-label={`Махни ${t}`}
         >
           {t} <span aria-hidden>×</span>
         </button>
@@ -189,18 +191,9 @@ export function TagInput({ value, onChange, placeholder, label }: { value: strin
   )
 }
 
-export function BagPhoto({ blob, className = '', iconSize = 36, alt = 'Coffee bag' }: { blob?: Blob; className?: string; iconSize?: number; alt?: string }) {
-  const img = useRef<HTMLImageElement>(null)
-
-  // Object URLs are an external resource: create per blob, revoke on change/unmount.
-  useEffect(() => {
-    if (!blob || !img.current) return
-    const url = URL.createObjectURL(blob)
-    img.current.src = url
-    return () => URL.revokeObjectURL(url)
-  }, [blob])
-
-  if (blob) return <img ref={img} alt={alt} className={`object-cover ${className}`} />
+/** A bag photo from its URL: `photoUrl` from Convex. */
+export function BagPhoto({ src, className = '', iconSize = 36, alt = 'Пакет кафе' }: { src?: string; className?: string; iconSize?: number; alt?: string }) {
+  if (src) return <img src={src} alt={alt} className={`object-cover ${className}`} />
   return (
     <div className={`grid place-items-center bg-[radial-gradient(circle_at_30%_20%,color-mix(in_oklab,var(--accent)_14%,var(--tint)),var(--tint)_70%)] text-muted/50 ${className}`}>
       <Bean width={iconSize} height={iconSize} />
@@ -208,8 +201,30 @@ export function BagPhoto({ blob, className = '', iconSize = 36, alt = 'Coffee ba
   )
 }
 
+/** While a query resolves: a quiet pulse instead of an empty page. */
+export function Loading() {
+  return (
+    <div role="status" className="grid place-items-center py-24">
+      <span className="sr-only">Зарежда се…</span>
+      <span aria-hidden className="size-8 rounded-full border-2 border-line border-t-accent motion-safe:animate-spin" />
+    </div>
+  )
+}
+
+/** An unknown route, or an id that is malformed, deleted or someone else's. */
+export function NotFound() {
+  return (
+    <p className="py-20 text-center text-muted">
+      Тук няма нищо.{' '}
+      <Link href="/" className="font-semibold text-accent-fg underline">
+        Към рафта
+      </Link>
+    </p>
+  )
+}
+
 /** Full-screen view of a bag photo; tap anywhere to close. */
-export function PhotoViewer({ blob, alt, onClose }: { blob: Blob; alt?: string; onClose: () => void }) {
+export function PhotoViewer({ src, alt, onClose }: { src: string; alt?: string; onClose: () => void }) {
   const close = useRef<HTMLButtonElement>(null)
 
   // Modal: focus the close button, lock page scroll, and hand focus back on the way out.
@@ -234,11 +249,11 @@ export function PhotoViewer({ blob, alt, onClose }: { blob: Blob; alt?: string; 
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Bag photo"
+      aria-label="Снимка на пакета"
       onClick={onClose}
       className="fixed inset-0 z-50 grid place-items-center overscroll-contain bg-black/85 p-4 backdrop-blur-sm"
     >
-      <BagPhoto blob={blob} alt={alt} className="max-h-full max-w-full rounded-[20px] !object-contain" />
+      <BagPhoto src={src} alt={alt} className="max-h-full max-w-full rounded-[20px] !object-contain" />
       <button
         ref={close}
         type="button"
@@ -249,7 +264,7 @@ export function PhotoViewer({ blob, alt, onClose }: { blob: Blob; alt?: string; 
         // The close button is the only focusable element, so Tab stays on it.
         onKeyDown={(e) => e.key === 'Tab' && e.preventDefault()}
         className="absolute top-[max(env(safe-area-inset-top),1rem)] right-4 rounded-full bg-white/15 p-2 text-white hover:bg-white/25"
-        aria-label="Close"
+        aria-label="Затвори"
       >
         <Close />
       </button>

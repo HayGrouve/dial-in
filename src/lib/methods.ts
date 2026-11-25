@@ -1,7 +1,10 @@
+import { count } from './count'
 import type { Brew, BrewMethod, Taste } from './db'
 
 interface MethodInfo {
   label: string
+  /** Mid-sentence, after "за" or "Запиши": "еспресо", "филтър", "AeroPress". */
+  noun: string
   /** Shots from an espresso machine (espresso, turbo) measure beverage out; every other method measures water in. */
   isEspresso: boolean
   hasBloom: boolean
@@ -11,23 +14,23 @@ interface MethodInfo {
 }
 
 export const METHODS: Record<BrewMethod, MethodInfo> = {
-  espresso: { label: 'Espresso', isEspresso: true, hasBloom: false, defaultRatio: 2, shot: { range: '25–30s', typical: 28 } },
+  espresso: { label: 'Еспресо', noun: 'еспресо', isEspresso: true, hasBloom: false, defaultRatio: 2, shot: { range: '25 до 30 с', typical: 28 } },
   // A turbo shot sits between espresso and filter: coarser grind, longer ratio, much faster shot.
-  turbo: { label: 'Turbo', isEspresso: true, hasBloom: false, defaultRatio: 3, shot: { range: '10–15s', typical: 12 } },
-  pourover: { label: 'Pour over', isEspresso: false, hasBloom: true, defaultRatio: 16 },
-  aeropress: { label: 'AeroPress', isEspresso: false, hasBloom: true, defaultRatio: 15 },
-  frenchpress: { label: 'French press', isEspresso: false, hasBloom: false, defaultRatio: 15 },
-  moka: { label: 'Moka pot', isEspresso: false, hasBloom: false, defaultRatio: 10 },
-  coldbrew: { label: 'Cold brew', isEspresso: false, hasBloom: false, defaultRatio: 8 },
-  other: { label: 'Other', isEspresso: false, hasBloom: false, defaultRatio: 15 },
+  turbo: { label: 'Турбо', noun: 'турбо', isEspresso: true, hasBloom: false, defaultRatio: 3, shot: { range: '10 до 15 с', typical: 12 } },
+  pourover: { label: 'Филтър', noun: 'филтър', isEspresso: false, hasBloom: true, defaultRatio: 16 },
+  aeropress: { label: 'AeroPress', noun: 'AeroPress', isEspresso: false, hasBloom: true, defaultRatio: 15 },
+  frenchpress: { label: 'Френска преса', noun: 'френска преса', isEspresso: false, hasBloom: false, defaultRatio: 15 },
+  moka: { label: 'Мока', noun: 'мока', isEspresso: false, hasBloom: false, defaultRatio: 10 },
+  coldbrew: { label: 'Студено извличане', noun: 'студено извличане', isEspresso: false, hasBloom: false, defaultRatio: 8 },
+  other: { label: 'Друго', noun: 'друг метод', isEspresso: false, hasBloom: false, defaultRatio: 15 },
 }
 
 export const METHOD_ORDER = Object.keys(METHODS) as BrewMethod[]
 
 export const TASTES: Record<Taste, { label: string; hint: string }> = {
-  sour: { label: 'Sour / thin', hint: 'Under-extracted — grind finer or raise the ratio.' },
-  balanced: { label: 'Balanced', hint: 'Sweet spot. Mark it as dialed in.' },
-  bitter: { label: 'Bitter / harsh', hint: 'Over-extracted — grind coarser or shorten the brew.' },
+  sour: { label: 'Кисело / водно', hint: 'Недоизвлечено. Смели по-фино или удължи съотношението.' },
+  balanced: { label: 'Балансирано', hint: 'Точно попадение. Закачи го като настройка.' },
+  bitter: { label: 'Горчиво / грубо', hint: 'Преизвлечено. Смели по-едро или скъси варенето.' },
 }
 
 export function ratio(dose?: number, out?: number) {
@@ -35,53 +38,71 @@ export function ratio(dose?: number, out?: number) {
   return `1:${(out / dose).toFixed(1).replace(/\.0$/, '')}`
 }
 
+/** Grams, as the stats show them: "18 г". */
+export const grams = (g: number) => `${g}\u00a0г`
+
 export function formatTime(sec?: number) {
   if (sec == null) return undefined
-  if (sec < 90) return `${sec}s`
+  if (sec < 90) return `${sec}\u00a0с`
   const m = Math.floor(sec / 60)
   const s = sec % 60
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
+/** "21 август". */
 export function shortDate(date: string | number) {
-  return new Date(date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+  return new Date(date).toLocaleDateString('bg', { month: 'long', day: 'numeric' })
 }
 
-/** Joins the truthy parts with a middle dot — used for one-line summaries. */
+/** Joins the truthy parts with a middle dot, for one-line summaries. */
 export const dotted = (...parts: (string | number | false | null | undefined)[]) => parts.filter(Boolean).join(' · ')
 
 /** Compact method tags for one-line setting summaries. */
 export const METHOD_SHORT: Record<BrewMethod, string> = {
-  espresso: 'ESP',
-  turbo: 'TURBO',
-  pourover: 'POUR',
+  espresso: 'ЕСП',
+  turbo: 'ТУРБО',
+  pourover: 'ФИЛТ',
   aeropress: 'AERO',
-  frenchpress: 'PRESS',
-  moka: 'MOKA',
-  coldbrew: 'COLD',
-  other: 'OTHER',
+  frenchpress: 'ПРЕСА',
+  moka: 'МОКА',
+  coldbrew: 'СТУД',
+  other: 'ДРУГО',
 }
 
 /** What to change after an off brew, phrased to follow the grind setting. */
 export function nextMove(taste: Taste) {
-  if (taste === 'sour') return 'ran sour. Grind finer or pull a longer ratio.'
-  if (taste === 'bitter') return 'ran bitter. Grind coarser or cut the brew short.'
+  if (taste === 'sour') return 'излезе кисело. Смели по-фино или удължи съотношението.'
+  if (taste === 'bitter') return 'излезе горчиво. Смели по-едро или скъси варенето.'
   return undefined
 }
 
-/** "Log an espresso", "Log a pour over". */
-export const logLabel = (method: BrewMethod) => {
-  const label = METHODS[method].label.toLowerCase()
-  return `Log ${/^[aeiou]/.test(label) ? 'an' : 'a'} ${label}`
-}
+/** "Запиши еспресо", "Запиши филтър"; "Запиши варене" for Друго. */
+export const logLabel = (method: BrewMethod) => (method === 'other' ? 'Запиши варене' : `Запиши ${METHODS[method].noun}`)
 
+const daysSince = (t: number) => Math.floor((new Date().setHours(0, 0, 0, 0) - new Date(t).setHours(0, 0, 0, 0)) / 86_400_000)
+
+/** "днес", "вчера", "преди 3 дни", then the date: "21 август". Lowercase, for mid-sentence. */
 export function relativeDay(t: number) {
-  const days = Math.floor((new Date().setHours(0, 0, 0, 0) - new Date(t).setHours(0, 0, 0, 0)) / 86_400_000)
-  if (days <= 0) return 'Today'
-  if (days === 1) return 'Yesterday'
-  if (days < 7) return `${days} days ago`
+  const days = daysSince(t)
+  if (days <= 0) return 'днес'
+  if (days === 1) return 'вчера'
+  if (days < 7) return `преди ${count(days, 'ден', 'дни')}`
   return shortDate(t)
 }
+
+/** "днес", "вчера", "преди 5 дни", "преди 3 седмици", "преди 4 месеца", "преди 2 години". */
+export function ago(t: number) {
+  const days = daysSince(t)
+  if (days <= 0) return 'днес'
+  if (days === 1) return 'вчера'
+  if (days < 14) return `преди ${count(days, 'ден', 'дни')}`
+  if (days < 60) return `преди ${count(Math.round(days / 7), 'седмица', 'седмици')}`
+  if (days < 730) return `преди ${count(Math.round(days / 30.4), 'месец', 'месеца')}`
+  return `преди ${count(Math.round(days / 365), 'година', 'години')}`
+}
+
+/** Capitalises the first letter, for a relative day at the start of a line. */
+export const capitalise = (s: string) => s.charAt(0).toLocaleUpperCase('bg') + s.slice(1)
 
 /** One entry per method used: the pinned brew, or the latest try as a fallback. Expects brews newest first. */
 export function settingsFor(brews: Brew[]) {
