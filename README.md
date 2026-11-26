@@ -1,5 +1,3 @@
-> **This is the `kafeto` branch: Онова за кафето in progress.** It moves Dial In onto the shared онова за Акаунт, with the log in Convex ([#27](https://github.com/HayGrouve/dial-in/issues/27)). `main` stays the live Dial In on dial-in-three.vercel.app until the single cutover merge. Every Кафето PR targets `kafeto`, never `main`.
-
 # Онова за кафето
 
 A grind-size journal for specialty coffee, formerly Dial In. Snap the bag, log your brews, pin the setting that tastes right. When you buy that coffee again months later, the number is waiting. Home Screen name: **Кафето**. The UI is Bulgarian, in informal "ти"; the words it uses are in [GLOSSARY.md](GLOSSARY.md).
@@ -35,7 +33,7 @@ Copy rules: Bulgarian, "ти", no em or en dashes anywhere in `src/` (`pnpm buil
 
 ## Deploy
 
-Vercel project `dial-in`, production from `main` after the cutover ([#35](https://github.com/HayGrouve/dial-in/issues/35)). Production env: `VITE_CLERK_PUBLISHABLE_KEY`, `VITE_CLERK_SIGN_IN_URL`, `VITE_CLERK_SIGN_UP_URL`, `VITE_CONVEX_URL` and `CONVEX_DEPLOY_KEY`; Convex prod: `CLERK_JWT_ISSUER_DOMAIN`, `CLERK_AUTHORIZED_PARTIES`, `CLERK_WEBHOOK_SIGNING_SECRET` (Clerk's `user.deleted` webhook goes to `/clerk/webhook`).
+Vercel project `dial-in`, production from `main` at https://kafeto.onovaza.com; the old dial-in-three.vercel.app redirects there (cutover: [#35](https://github.com/HayGrouve/onova-za-kafeto/issues/35)). Production env: `VITE_CLERK_PUBLISHABLE_KEY`, `VITE_CLERK_SIGN_IN_URL`, `VITE_CLERK_SIGN_UP_URL`, `VITE_CONVEX_URL` and `CONVEX_DEPLOY_KEY`; Convex prod: `CLERK_JWT_ISSUER_DOMAIN`, `CLERK_AUTHORIZED_PARTIES`, `CLERK_WEBHOOK_SIGNING_SECRET` (Clerk's `user.deleted` webhook goes to `/clerk/webhook`).
 
 ## Stack
 
